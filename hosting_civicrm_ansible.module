@@ -1,0 +1,149 @@
+<?php
+
+// Use the default CiviCRM cron interval for this site.
+define('HOSTING_CIVICRM_ANSIBLE_CRON_SITE_DEFAULT', 0);
+
+// Do not run CiviCRM cron for this site.
+define('HOSTING_CIVICRM_ANSIBLE_CRON_SITE_DISABLED', -1);
+
+/**
+ * Implements hook_init().
+ */
+function hosting_civicrm_ansible_init() {
+  drupal_add_css(drupal_get_path('module', 'hosting_civicrm_ansible') . '/hosting_civicrm_ansible.css');
+}
+
+/**
+ * Implements hook_node_load().
+ */
+function hosting_civicrm_ansible_node_load($nodes, $types) {
+  if (!in_array('site', $types)) {
+    return;
+  }
+
+  foreach ($nodes as $node) {
+    if (!in_array($node->type, ['site', 'wpsite'])) {
+      continue;
+    }
+
+    if (in_array($node->platform, hosting_civicrm_get_platforms())) {
+      $node->hosting_ansible_cron_last_output = _hosting_ansible_cron_last_output($node);
+
+      // When loading a site node, fetch the site's CiviCRM cron interval
+      // from the database.
+      $result = db_query('SELECT civicrm_ansible_cron_interval FROM {hosting_site} WHERE nid = :nid', array(':nid' => $node->nid))->fetchField();
+
+      // If no specific cron interval was set for this site, use the default.
+      $node->civicrm_ansible_cron_interval = $result ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900);
+    }
+  }
+}
+
+/**
+ * Implements hook_node_view().
+ */
+function hosting_civicrm_ansible_node_view($node, $view_mode, $langcode) {
+  if (!isset($node->civicrm_ansible_cron_interval)) {
+    return;
+  }
+
+  $cron_text = '<p>' . $node->civicrm_ansible_cron_interval == HOSTING_CIVICRM_ANSIBLE_CRON_SITE_DISABLED ? t('Disabled') : t('Every !interval', array('!interval' => format_interval($node->civicrm_ansible_cron_interval))) . '</p>';
+  $cron_text .= '<div class="hosting-civicrm-ansible-cron-output">' . $node->hosting_ansible_cron_last_output . '</div>';
+
+  $node->content['hosting_civicrm_ansible'] = [
+    '#weight' => 3000,
+  ];
+
+  $node->content['hosting_civicrm_ansible']['#prefix'] = '<div id="hosting-civicrm-ansible-info">';
+  
+  $node->content['hosting_civicrm_ansible']['ansible_last_civicrm_cron'] = [
+    '#type' => 'item',
+    '#title' => t('Ansible - CiviCRM cron run'),
+    '#weight' => 50000,
+    '#markup' => $cron_text,
+  ];
+
+  $node->content['hosting_civicrm_ansible']['#suffix'] = '</div>';
+}
+
+function hosting_civicrm_ansible_node_update($node) {
+  if (isset($node->civicrm_ansible_cron_interval)) {
+    db_query('UPDATE {hosting_site} SET civicrm_ansible_cron_interval = :interval WHERE nid = :nid', array(':interval' => $node->civicrm_ansible_cron_interval, ':nid' => $node->nid));
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function hosting_civicrm_ansible_form_hosting_settings_alter(&$form, $form_state) {
+  $options = hosting_civicrm_ansible_interval_options();
+  unset($options[0]);
+
+  $form['hosting_civicrm_ansible_cron_default_interval'] = [
+    '#type' => 'select',
+    '#title' => t('Ansible - Default CiviCRM cron interval'),
+    '#options' => $options,
+    '#description' => t('TODO: Not implemented. Cron will always run every 15 minutes. The CiviCRM cron interval to use for all sites unless overridden on the site node itself.'),
+    '#default_value' => variable_get('hosting_civicrm_ansible_cron_default_interval', 900),
+  ];
+
+  // Add some weight to the buttons to push them to the bottom of the form.
+  $form['buttons']['#weight'] = 1000;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Add the CiviCRM cron interval setting to site node forms.
+ */
+function hosting_civicrm_ansible_form_site_node_form_alter(&$form, $form_state) {
+  if (user_access('edit site')) {
+    if (isset($form['nid']['#value']) && _is_civicrm_platform($form['platform']['#value'])) {
+      $form['civicrm_ansible_cron_interval'] = [
+        '#type' => 'select',
+        '#title' => t('Ansible - CiviCRM cron interval'),
+        '#options' => hosting_civicrm_ansible_interval_options(),
+        '#description' => t('TODO: Not implemented. Cron will always run every 15 minutes. The CiviCRM cron will be automatically run for this site at the interval defined here.'),
+        '#default_value' => $form['#node']->civicrm_ansible_cron_interval,
+        '#weight' => 10,
+      ];
+
+      return $form;
+    }
+  }
+}
+
+/**
+ * Returns an array of options for the CiviCRM cron interval.
+ *
+ * @return
+ *   An associative array with the interval in seconds as key, and a
+ *   human-readable interval as value.
+ */
+function hosting_civicrm_ansible_interval_options() {
+  $options = [
+    HOSTING_CIVICRM_CRON_SITE_DISABLED => t('Disabled'),
+    HOSTING_CIVICRM_CRON_SITE_DEFAULT => t('Default'),
+  ];
+  $options += drupal_map_assoc(array(60, 300, 900, 1800, 3600, 21600, 86400), 'format_interval');
+
+  return $options;
+}
+
+/**
+ * Return the last CiviCRM cron for a site
+ */
+function _hosting_ansible_cron_last_output($node) {
+  $prefix = ($node->type == 'site' ? 'd7' : 'wp') . 'civicron_';
+  $shortname = hosting_civicrm_ansible_inventory_shortname($node->title);
+  $service = $prefix . $shortname;
+
+  ob_start();
+  passthru('sudo /usr/local/bin/aegir-systemctl-status ' . escapeshellarg($service));
+  $output = ob_get_clean();
+
+  // Highlight the last cron run
+  $output = preg_replace('/; (.* ago)/', '; <span class="hosting-civicrm-ansible-highlight">\1</span>', $output);
+
+  return $output;
+}

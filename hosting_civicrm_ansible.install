@@ -1,0 +1,34 @@
+<?php
+
+/**
+ *  Add (and remove) a field in the hosting_site table comparable to last_cron
+ */
+
+
+/**
+ * Implements hook_schema_alter().
+ */
+function hosting_civicrm_ansible_schema_alter(&$schema) {
+  // Add field to existing schema.
+  $schema['hosting_site']['fields']['civicrm_ansible_cron_interval'] = [
+    'type' => 'int',
+    'not null' => TRUE,
+    'default' => 0,
+  ];
+}
+
+/**
+ * Implements hook_install().
+ */
+function hosting_civicrm_ansible_install() {
+  $schema = drupal_get_schema('hosting_site');
+  db_add_field('hosting_site', 'civicrm_ansible_cron_interval', $schema['fields']['civicrm_ansible_cron_interval']);
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function hosting_civicrm_ansible_uninstall() {
+  db_drop_field('hosting_site', 'civicrm_ansible_cron_interval');
+  variable_del('hosting_civicrm_ansible_cron_default_interval');
+}
