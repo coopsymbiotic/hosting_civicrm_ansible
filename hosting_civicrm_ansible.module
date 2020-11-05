@@ -31,10 +31,13 @@ function hosting_civicrm_ansible_node_load($nodes, $types) {
 
       // When loading a site node, fetch the site's CiviCRM cron interval
       // from the database.
-      $result = db_query('SELECT civicrm_ansible_cron_interval FROM {hosting_site} WHERE nid = :nid', array(':nid' => $node->nid))->fetchField();
+      $result = db_query('SELECT * FROM {hosting_site} WHERE nid = :nid', array(':nid' => $node->nid))->fetchObject();
 
       // If no specific cron interval was set for this site, use the default.
-      $node->civicrm_ansible_cron_interval = $result ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900);
+      $node->civicrm_ansible_cron_interval = $result->civicrm_ansible_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900);
+      $node->civicrm_ansible_sftpchroot_keys = $result->civicrm_ansible_sftpchroot_keys ?: '';
+      $node->civicrm_ansible_mysqlro_keys = $result->civicrm_ansible_mysqlro_keys ?: '';
+      $node->civicrm_ansible_mysqlrw_keys = $result->civicrm_ansible_mysqlrw_keys ?: '';
     }
   }
 }
@@ -68,7 +71,18 @@ function hosting_civicrm_ansible_node_view($node, $view_mode, $langcode) {
 
 function hosting_civicrm_ansible_node_update($node) {
   if (isset($node->civicrm_ansible_cron_interval)) {
-    db_query('UPDATE {hosting_site} SET civicrm_ansible_cron_interval = :interval WHERE nid = :nid', array(':interval' => $node->civicrm_ansible_cron_interval, ':nid' => $node->nid));
+    db_query('UPDATE {hosting_site}
+      SET civicrm_ansible_cron_interval = :interval,
+        civicrm_ansible_sftpchroot_keys = :sftpkeys,
+        civicrm_ansible_mysqlro_keys = :mysqlrokeys,
+        civicrm_ansible_mysqlrw_keys = :mysqlrwkeys
+      WHERE nid = :nid', [
+        ':interval' => $node->civicrm_ansible_cron_interval,
+        ':sftpkeys' => $node->civicrm_ansible_sftpchroot_keys,
+        ':mysqlrokeys' => $node->civicrm_ansible_mysqlro_keys,
+        ':mysqlrwkeys' => $node->civicrm_ansible_mysqlrw_keys,
+        ':nid' => $node->nid,
+    ]);
   }
 }
 
@@ -99,6 +113,30 @@ function hosting_civicrm_ansible_form_hosting_settings_alter(&$form, $form_state
 function hosting_civicrm_ansible_form_site_node_form_alter(&$form, $form_state) {
   if (user_access('edit site')) {
     if (isset($form['nid']['#value']) && _is_civicrm_platform($form['platform']['#value'])) {
+      $form['civicrm_ansible_sftpchroot_keys'] = [
+        '#type' => 'textarea',
+        '#title' => t('Ansible - sFTP chroot public keys'),
+        '#description' => t('Enter ssh public keys to grant sFTP access to the <em>files</em> directory of the site.'),
+        '#default_value' => $form['#node']->civicrm_ansible_sftpchroot_keys,
+        '#weight' => 9,
+      ];
+
+      $form['civicrm_ansible_mysqlro_keys'] = [
+        '#type' => 'textarea',
+        '#title' => t('Ansible - MySQL read-only access ssh public keys'),
+        '#description' => t('Enter ssh public keys to grant MySQL read-only access to the site database. The username will be !user.'),
+        '#default_value' => $form['#node']->civicrm_ansible_mysqlro_keys,
+        '#weight' => 9,
+      ];
+
+      $form['civicrm_ansible_mysqlrw_keys'] = [
+        '#type' => 'textarea',
+        '#title' => t('Ansible - MySQL write access ssh public keys'),
+        '#description' => t('Enter ssh public keys to grant MySQL write access to the site database. The username will be !user.'),
+        '#default_value' => $form['#node']->civicrm_ansible_mysqlrw_keys,
+        '#weight' => 9,
+      ];
+
       $form['civicrm_ansible_cron_interval'] = [
         '#type' => 'select',
         '#title' => t('Ansible - CiviCRM cron interval'),
@@ -146,4 +184,61 @@ function _hosting_ansible_cron_last_output($node) {
   $output = preg_replace('/; (.* ago)/', '; <span class="hosting-civicrm-ansible-highlight">\1</span>', $output);
 
   return $output;
+}
+
+/**
+ * Implements hook_ansible_inventory_alter from the 'aegir_ansible' module
+ *
+ * @see https://www.drupal.org/project/aegir_ansible/
+ */
+function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
+  $inventory->civicrm_sites = [
+    'hosts' => [],
+    'vars' => [
+      'ansible_ssh_host' => 'localhost',
+    ],
+  ];
+
+  $nids = hosting_civicrm_get_sites();
+  $civicrm_nodes = node_load_multiple($nids);
+
+  foreach ($civicrm_nodes as $node) {
+    // Remove the top-level domain name from the shortname
+    $shortname = hosting_civicrm_ansible_inventory_shortname($node->title);
+
+    $inventory->{'_meta'}->hostvars->{$node->title} = [
+      // @todo drupal=d7, drupal8, wordpress
+      'cms' => 'drupal',
+      'site_shortname' => $shortname,
+      'civicrm_ansible_cron_interval' => $node->civicrm_ansible_cron_interval,
+      'civicrm_ansible_sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
+      'civicrm_ansible_mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys,
+      'civicrm_ansible_mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
+    ];
+
+    $inventory->civicrm_sites['hosts'][] = $node->title;
+  }
+}
+
+/**
+ * Returns the site shortname for the inventory.
+ */
+function hosting_civicrm_ansible_inventory_shortname($uri) {
+  // Get the base name of the Aegir frontend, assuming the site_name is the fqdn
+  // We will later remove this part from the site URL for the short systemd unit name
+  // Useful for farms where the are sites using a subdomain.
+  // Ex: aegir = aegir1.example.org
+  // and: site = mysite.example.org
+  // then the shortname = mysite
+  $aegir_server_url = variable_get('site_name');
+  $parts = explode('.', $aegir_server_url);
+  array_shift($parts);
+  $aegir_server_url = implode('.', $parts);
+
+  // Remove the top-level domain name from the shortname
+  $shortname = $uri;
+  $shortname = str_replace($aegir_server_url, '', $shortname);
+  $shortname = str_replace('.', '', $shortname);
+
+  return $shortname;
 }

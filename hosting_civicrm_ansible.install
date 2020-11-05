@@ -15,6 +15,15 @@ function hosting_civicrm_ansible_schema_alter(&$schema) {
     'not null' => TRUE,
     'default' => 0,
   ];
+  $schema['hosting_site']['fields']['civicrm_ansible_sftpchroot_keys'] = [
+    'type' => 'text',
+  ];
+  $schema['hosting_site']['fields']['civicrm_ansible_mysqlro_keys'] = [
+    'type' => 'text',
+  ];
+  $schema['hosting_site']['fields']['civicrm_ansible_mysqlrw_keys'] = [
+    'type' => 'text',
+  ];
 }
 
 /**
@@ -23,6 +32,9 @@ function hosting_civicrm_ansible_schema_alter(&$schema) {
 function hosting_civicrm_ansible_install() {
   $schema = drupal_get_schema('hosting_site');
   db_add_field('hosting_site', 'civicrm_ansible_cron_interval', $schema['fields']['civicrm_ansible_cron_interval']);
+  db_add_field('hosting_site', 'civicrm_ansible_sftpchroot_keys', $schema['fields']['civicrm_ansible_sftpchroot_keys']);
+  db_add_field('hosting_site', 'civicrm_ansible_mysqlro_keys', $schema['fields']['civicrm_ansible_mysqlro_keys']);
+  db_add_field('hosting_site', 'civicrm_ansible_mysqlrw_keys', $schema['fields']['civicrm_ansible_mysqlrw_keys']);
 }
 
 /**
@@ -30,5 +42,18 @@ function hosting_civicrm_ansible_install() {
  */
 function hosting_civicrm_ansible_uninstall() {
   db_drop_field('hosting_site', 'civicrm_ansible_cron_interval');
+  db_drop_field('hosting_site', 'civicrm_ansible_sftpchroot_keys');
+  db_drop_field('hosting_site', 'civicrm_ansible_mysqlro_keys');
+  db_drop_field('hosting_site', 'civicrm_ansible_mysqlrw_keys');
   variable_del('hosting_civicrm_ansible_cron_default_interval');
+}
+
+/**
+ * Add ssh pubkey fields to hosting_site.
+ */
+function hosting_civicrm_update_7103() {
+  $schema = drupal_get_schema('hosting_site');
+  db_add_field('hosting_site', 'civicrm_ansible_sftpchroot_keys', $schema['fields']['civicrm_ansible_sftpchroot_keys']);
+  db_add_field('hosting_site', 'civicrm_ansible_mysqlro_keys', $schema['fields']['civicrm_ansible_mysqlro_keys']);
+  db_add_field('hosting_site', 'civicrm_ansible_mysqlrw_keys', $schema['fields']['civicrm_ansible_mysqlrw_keys']);
 }
