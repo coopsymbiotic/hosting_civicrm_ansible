@@ -46,72 +46,73 @@ function hosting_civicrm_ansible_node_load($nodes, $types) {
  * Implements hook_node_view().
  */
 function hosting_civicrm_ansible_node_view($node, $view_mode, $langcode) {
-  if (!isset($node->civicrm_ansible_cron_interval)) {
-    return;
-  }
-
-  // Display the CiviCRM cron output
-  $cron_text = '<p>' . $node->civicrm_ansible_cron_interval == HOSTING_CIVICRM_ANSIBLE_CRON_SITE_DISABLED ? t('Disabled') : t('Every !interval', array('!interval' => format_interval($node->civicrm_ansible_cron_interval))) . '</p>';
-  $cron_text .= '<div class="hosting-civicrm-ansible-cron-output">' . $node->hosting_ansible_cron_last_output . '</div>';
-
   $node->content['hosting_civicrm_ansible'] = [
     '#weight' => 3000,
   ];
 
   $node->content['hosting_civicrm_ansible']['#prefix'] = '<div id="hosting-civicrm-ansible-info">';
 
-  $node->content['hosting_civicrm_ansible']['ansible_last_civicrm_cron'] = [
-    '#type' => 'item',
-    '#title' => t('Ansible - CiviCRM cron run'),
-    '#weight' => 10,
-    '#markup' => $cron_text,
-  ];
+  if (in_array($node->type, ['site', 'wpsite'])) {
+    // Display the CiviCRM cron output
+    $cron_text = '<p>' . $node->civicrm_ansible_cron_interval == HOSTING_CIVICRM_ANSIBLE_CRON_SITE_DISABLED ? t('Disabled') : t('Every !interval', array('!interval' => format_interval($node->civicrm_ansible_cron_interval))) . '</p>';
 
-  // Display database disk space usage
-  $stats = [];
-  exec('sudo /usr/local/bin/aegir-db-filestats ' . escapeshellarg($node->db_name) . ' 2>&1', $stats);
-
-  $stats = implode('', $stats);
-  $stats = json_decode($stats);
-
-  foreach ($stats as $key => $val) {
-    if (!is_array($val)) {
-      unset($stats[$key]);
+    if (isset($node->civicrm_ansible_cron_interval)) {
+      $cron_text .= '<div class="hosting-civicrm-ansible-cron-output">' . $node->hosting_ansible_cron_last_output . '</div>';
     }
+
+    $node->content['hosting_civicrm_ansible']['ansible_last_civicrm_cron'] = [
+      '#type' => 'item',
+      '#title' => t('Ansible - CiviCRM cron run'),
+      '#weight' => 10,
+      '#markup' => $cron_text,
+    ];
   }
 
-  $formatted = '<div style="max-height: 300px; overflow-y: scroll"><table><thead><tr><th>File</th><th>Size</th></tr></thead><tbody>';
+  if (in_array($node->type, ['site', 'wpsite']) || ($node->type == 'server' && !empty($node->services['db']))) {
+    // Display database disk space usage
+    $stats = [];
 
-  foreach ($stats as $key => $val) {
-    // The first entry is the directory itself (the space taken by the dir entry, not the recursive total)
-    unset($val[0]);
+    if (isset($node->db_name)) {
+      exec('sudo /usr/local/bin/aegir-db-filestats ' . escapeshellarg($node->db_name), $stats);
+    }
+    else {
+      exec('sudo /usr/local/bin/aegir-db-filestats', $stats);
+    }
+
+    $stats = implode('', $stats);
+    $stats = json_decode($stats);
+
+    foreach ($stats as $key => $val) {
+      if (!is_array($val) && !isset($val->name)) {
+        unset($stats[$key]);
+      }
+    }
+
+    $level = 0;
+    $total = hosting_civicrm_ansible_calculate_diskusage($stats);
+
+    $formatted = '<div style="max-height: 300px; overflow-y: scroll"><table><thead><tr><th>File</th><th>Size</th></tr></thead><tbody>';
+    $tmp = [];
+    hosting_civicrm_ansible_format_diskusage($tmp, $stats, $total, $level);
 
     // Sort by largest first
-    uasort($val, function($a, $b) {
-      return ($a->asize < $b->asize);
+    uasort($tmp, function($a, $b) {
+      return ($a['size'] < $b['size']);
     });
 
-    $total = 0;
-
-    foreach ($val as $file) {
-      $total += $file->asize;
+    foreach ($tmp as $t) {
+      $formatted .= $t['html'];
     }
 
-    foreach ($val as $file) {
-      // Displaying "Apparent size", not actual disk allocation (which mostly impacts small files)
-      // NB: format_size is drupal-specific (also exists in d8)
-      $formatted .= '<tr><td><div style="background: #0f0; width: ' . round($file->asize/$total*100) . '%;">' . $file->name . '</div></td><td>' . format_size($file->asize) . "</td></tr>";
-    }
+    $formatted .= '</tbody></table></div>';
+
+    $node->content['hosting_civicrm_ansible']['database_disk_usage'] = [
+      '#type' => 'item',
+      '#title' => t('Database Disk Space Usage'),
+      '#weight' => 20,
+      '#markup' => '<div>' . $formatted . '</div>',
+    ];
   }
-
-  $formatted .= '</tbody></table></div>';
-
-  $node->content['hosting_civicrm_ansible']['database_disk_usage'] = [
-    '#type' => 'item',
-    '#title' => t('Database Disk Space Usage'),
-    '#weight' => 20,
-    '#markup' => '<div>' . $formatted . '</div>',
-  ];
 
   $node->content['hosting_civicrm_ansible']['#suffix'] = '</div>';
 }
@@ -288,4 +289,54 @@ function hosting_civicrm_ansible_inventory_shortname($uri) {
   $shortname = str_replace('.', '', $shortname);
 
   return $shortname;
+}
+
+/**
+ * Calculate recursively the total disk usage in a directory.
+ */
+function hosting_civicrm_ansible_calculate_diskusage($stats) {
+  $total = 0;
+
+  foreach ($stats as $file) {
+    if (is_array($file)) {
+      $total += hosting_civicrm_ansible_calculate_diskusage($file);
+    }
+    else {
+      $total += $file->asize;
+    }
+  }
+
+  return $total;
+}
+
+/**
+ * Semi-recursive display of files/size in a given directory.
+ * We only want the first and 2nd level data (ex: /var/lib/mysql/ and the databases in it, but not the details)
+ */
+function hosting_civicrm_ansible_format_diskusage(&$formatted, $val, $total, $level) {
+  foreach ($val as $file) {
+    if (is_array($file)) {
+      $subtotal = hosting_civicrm_ansible_calculate_diskusage($file);
+
+      // The first entry is the directory itself (the space taken by the dir entry, not the recursive total)
+      $formatted[] = [
+        'size' => $subtotal,
+        'html' => '<tr><td><div style="background: #0f0; width: ' . round($subtotal/$total*100) . '%;">' . $file[0]->name . '</div></td><td>' . format_size($subtotal) . "</td></tr>",
+      ];
+
+      unset($file[0]);
+
+      if ($level == 0) {
+        hosting_civicrm_ansible_format_diskusage($formatted, $file, $total, $level+1);
+      }
+    }
+    else {
+      // Displaying "Apparent size", not actual disk allocation (which mostly impacts small files)
+      // NB: format_size is drupal-specific (also exists in d8)
+      $formatted[] = [
+        'size' => $file->asize,
+        'html' => '<tr><td><div style="background: #0f0; width: ' . round($file->asize/$total*100) . '%;">' . $file->name . '</div></td><td>' . format_size($file->asize) . "</td></tr>",
+      ];
+    }
+  }
 }
