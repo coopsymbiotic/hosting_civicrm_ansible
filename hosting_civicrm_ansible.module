@@ -50,6 +50,7 @@ function hosting_civicrm_ansible_node_view($node, $view_mode, $langcode) {
     return;
   }
 
+  // Display the CiviCRM cron output
   $cron_text = '<p>' . $node->civicrm_ansible_cron_interval == HOSTING_CIVICRM_ANSIBLE_CRON_SITE_DISABLED ? t('Disabled') : t('Every !interval', array('!interval' => format_interval($node->civicrm_ansible_cron_interval))) . '</p>';
   $cron_text .= '<div class="hosting-civicrm-ansible-cron-output">' . $node->hosting_ansible_cron_last_output . '</div>';
 
@@ -58,12 +59,58 @@ function hosting_civicrm_ansible_node_view($node, $view_mode, $langcode) {
   ];
 
   $node->content['hosting_civicrm_ansible']['#prefix'] = '<div id="hosting-civicrm-ansible-info">';
-  
+
   $node->content['hosting_civicrm_ansible']['ansible_last_civicrm_cron'] = [
     '#type' => 'item',
     '#title' => t('Ansible - CiviCRM cron run'),
-    '#weight' => 50000,
+    '#weight' => 10,
     '#markup' => $cron_text,
+  ];
+
+  // Display database disk space usage
+  $stats = [];
+  exec('sudo /usr/local/bin/aegir-db-filestats ' . escapeshellarg($node->db_name) . ' 2>&1', $stats);
+
+  $stats = implode('', $stats);
+  $stats = json_decode($stats);
+
+  foreach ($stats as $key => $val) {
+    if (!is_array($val)) {
+      unset($stats[$key]);
+    }
+  }
+
+  $formatted = '<div style="max-height: 300px; overflow-y: scroll"><table><thead><tr><th>File</th><th>Size</th></tr></thead><tbody>';
+
+  foreach ($stats as $key => $val) {
+    // The first entry is the directory itself (the space taken by the dir entry, not the recursive total)
+    unset($val[0]);
+
+    // Sort by largest first
+    uasort($val, function($a, $b) {
+      return ($a->asize < $b->asize);
+    });
+
+    $total = 0;
+
+    foreach ($val as $file) {
+      $total += $file->asize;
+    }
+
+    foreach ($val as $file) {
+      // Displaying "Apparent size", not actual disk allocation (which mostly impacts small files)
+      // NB: format_size is drupal-specific (also exists in d8)
+      $formatted .= '<tr><td><div style="background: #0f0; width: ' . round($file->asize/$total*100) . '%;">' . $file->name . '</div></td><td>' . format_size($file->asize) . "</td></tr>";
+    }
+  }
+
+  $formatted .= '</tbody></table></div>';
+
+  $node->content['hosting_civicrm_ansible']['database_disk_usage'] = [
+    '#type' => 'item',
+    '#title' => t('Database Disk Space Usage'),
+    '#weight' => 20,
+    '#markup' => '<div>' . $formatted . '</div>',
   ];
 
   $node->content['hosting_civicrm_ansible']['#suffix'] = '</div>';
