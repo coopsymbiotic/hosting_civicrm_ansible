@@ -321,7 +321,7 @@ function hosting_civicrm_ansible_format_diskusage(&$formatted, $val, $total, $le
       // The first entry is the directory itself (the space taken by the dir entry, not the recursive total)
       $formatted[] = [
         'size' => $subtotal,
-        'html' => '<tr><td><div style="background: #0f0; width: ' . round($subtotal/$total*100) . '%;">' . $file[0]->name . '</div></td><td>' . format_size($subtotal) . "</td></tr>",
+        'html' => '<tr><td><div style="background: #0f0; white-space: nowrap; width: ' . round($subtotal/$total*100) . '%;">' . $file[0]->name . '</div></td><td>' . format_size($subtotal) . "</td></tr>",
       ];
 
       unset($file[0]);
@@ -335,7 +335,7 @@ function hosting_civicrm_ansible_format_diskusage(&$formatted, $val, $total, $le
       // NB: format_size is drupal-specific (also exists in d8)
       $formatted[] = [
         'size' => $file->asize,
-        'html' => '<tr><td><div style="background: #0f0; width: ' . round($file->asize/$total*100) . '%;">' . $file->name . '</div></td><td>' . format_size($file->asize) . "</td></tr>",
+        'html' => '<tr><td><div style="background: #0f0; white-space: nowrap; width: ' . round($file->asize/$total*100) . '%;">' . $file->name . '</div></td><td>' . format_size($file->asize) . "</td></tr>",
       ];
     }
   }
