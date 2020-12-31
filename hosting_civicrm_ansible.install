@@ -1,59 +1,59 @@
 <?php
 
 /**
- *  Add (and remove) a field in the hosting_site table comparable to last_cron
+ * @file
+ * Define database schema and update functions for the module.
  */
-
 
 /**
- * Implements hook_schema_alter().
+ * Implements hook_schema().
  */
-function hosting_civicrm_ansible_schema_alter(&$schema) {
-  // Add field to existing schema.
-  $schema['hosting_site']['fields']['civicrm_ansible_cron_interval'] = [
-    'type' => 'int',
-    'not null' => TRUE,
-    'default' => 0,
+function hosting_civicrm_ansible_schema() {
+  $schema['hosting_civicrm_ansible'] = [
+    'fields' => [
+      'nid' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'civicrm_cron_interval' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'sftpchroot_keys' => [
+        'type' => 'text',
+      ],
+      'mysqlro_keys' => [
+        'type' => 'text',
+      ],
+      'mysqlrw_keys' => [
+        'type' => 'text',
+      ],
+    ],
+    'primary key' => ['nid'],
   ];
-  $schema['hosting_site']['fields']['civicrm_ansible_sftpchroot_keys'] = [
-    'type' => 'text',
-  ];
-  $schema['hosting_site']['fields']['civicrm_ansible_mysqlro_keys'] = [
-    'type' => 'text',
-  ];
-  $schema['hosting_site']['fields']['civicrm_ansible_mysqlrw_keys'] = [
-    'type' => 'text',
-  ];
+
+  return $schema;
 }
 
 /**
- * Implements hook_install().
+ * Migrate old fields that were on the hosting_site table.
  */
-function hosting_civicrm_ansible_install() {
-  $schema = drupal_get_schema('hosting_site');
-  db_add_field('hosting_site', 'civicrm_ansible_cron_interval', $schema['fields']['civicrm_ansible_cron_interval']);
-  db_add_field('hosting_site', 'civicrm_ansible_sftpchroot_keys', $schema['fields']['civicrm_ansible_sftpchroot_keys']);
-  db_add_field('hosting_site', 'civicrm_ansible_mysqlro_keys', $schema['fields']['civicrm_ansible_mysqlro_keys']);
-  db_add_field('hosting_site', 'civicrm_ansible_mysqlrw_keys', $schema['fields']['civicrm_ansible_mysqlrw_keys']);
-}
+function hosting_civicrm_update_7106() {
+  $return = [];
 
-/**
- * Implements hook_uninstall().
- */
-function hosting_civicrm_ansible_uninstall() {
+  $schema = drupal_get_schema('hosting_civicrm_ansible');
+  db_create_table('hosting_civicrm_ansible', $schema);
+
+  db_query('INSERT INTO hosting_civicrm_ansible (nid, civicrm_cron_interval, sftpchroot_keys, mysqlro_keys, mysqlrw_keys)
+     SELECT nid, civicrm_ansible_cron_interval, civicrm_ansible_sftpchroot_keys, civicrm_ansible_mysqlro_keys, civicrm_ansible_mysqlrw_keys
+       FROM hosting_site
+      WHERE civicrm_ansible_cron_interval > 0 OR civicrm_ansible_sftpchroot_keys IS NOT NULL OR civicrm_ansible_mysqlro_keys IS NOT NULL OR civicrm_ansible_mysqlrw_keys IS NOT NULL');
+
   db_drop_field('hosting_site', 'civicrm_ansible_cron_interval');
   db_drop_field('hosting_site', 'civicrm_ansible_sftpchroot_keys');
-  db_drop_field('hosting_site', 'civicrm_ansible_mysqlro_keys');
   db_drop_field('hosting_site', 'civicrm_ansible_mysqlrw_keys');
-  variable_del('hosting_civicrm_ansible_cron_default_interval');
-}
-
-/**
- * Add ssh pubkey fields to hosting_site.
- */
-function hosting_civicrm_update_7103() {
-  $schema = drupal_get_schema('hosting_site');
-  db_add_field('hosting_site', 'civicrm_ansible_sftpchroot_keys', $schema['fields']['civicrm_ansible_sftpchroot_keys']);
-  db_add_field('hosting_site', 'civicrm_ansible_mysqlro_keys', $schema['fields']['civicrm_ansible_mysqlro_keys']);
-  db_add_field('hosting_site', 'civicrm_ansible_mysqlrw_keys', $schema['fields']['civicrm_ansible_mysqlrw_keys']);
+  db_drop_field('hosting_site', 'civicrm_ansible_mysqlro_keys');
 }

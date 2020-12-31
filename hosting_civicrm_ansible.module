@@ -17,28 +17,24 @@ function hosting_civicrm_ansible_init() {
  * Implements hook_node_load().
  */
 function hosting_civicrm_ansible_node_load($nodes, $types) {
-  if (!in_array('site', $types)) {
-    return;
-  }
-
   foreach ($nodes as $node) {
     if (!in_array($node->type, ['site', 'wpsite'])) {
       continue;
     }
 
     // Fetch custom data for this site
-    $result = db_query('SELECT * FROM {hosting_site} WHERE nid = :nid', array(':nid' => $node->nid))->fetchObject();
+    $result = db_query('SELECT * FROM {hosting_civicrm_ansible} WHERE nid = :nid', array(':nid' => $node->nid))->fetchObject();
 
-    if (in_array($node->platform, hosting_civicrm_get_platforms())) {
+    if ($result->civicrm_cron_interval) {
       $node->hosting_ansible_cron_last_output = _hosting_ansible_cron_last_output($node);
 
       // If no specific cron interval was set for this site, use the default.
-      $node->civicrm_ansible_cron_interval = $result->civicrm_ansible_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900);
+      $node->civicrm_ansible_cron_interval = $result->civicrm_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900);
     }
 
-    $node->civicrm_ansible_sftpchroot_keys = $result->civicrm_ansible_sftpchroot_keys ?: '';
-    $node->civicrm_ansible_mysqlro_keys = $result->civicrm_ansible_mysqlro_keys ?: '';
-    $node->civicrm_ansible_mysqlrw_keys = $result->civicrm_ansible_mysqlrw_keys ?: '';
+    $node->civicrm_ansible_sftpchroot_keys = $result->sftpchroot_keys ?: '';
+    $node->civicrm_ansible_mysqlro_keys = $result->mysqlro_keys ?: '';
+    $node->civicrm_ansible_mysqlrw_keys = $result->mysqlrw_keys ?: '';
   }
 }
 
@@ -126,19 +122,17 @@ function hosting_civicrm_ansible_node_view($node, $view_mode, $langcode) {
 }
 
 function hosting_civicrm_ansible_node_update($node) {
-  if (isset($node->civicrm_ansible_cron_interval)) {
-    db_query('UPDATE {hosting_site}
-      SET civicrm_ansible_cron_interval = :interval,
-        civicrm_ansible_sftpchroot_keys = :sftpkeys,
-        civicrm_ansible_mysqlro_keys = :mysqlrokeys,
-        civicrm_ansible_mysqlrw_keys = :mysqlrwkeys
-      WHERE nid = :nid', [
-        ':interval' => $node->civicrm_ansible_cron_interval,
-        ':sftpkeys' => $node->civicrm_ansible_sftpchroot_keys,
-        ':mysqlrokeys' => $node->civicrm_ansible_mysqlro_keys,
-        ':mysqlrwkeys' => $node->civicrm_ansible_mysqlrw_keys,
-        ':nid' => $node->nid,
-    ]);
+  if (in_array($node->type, ['site', 'wpsite'])) {
+    // https://www.drupal.org/node/2340291
+    db_merge('hosting_civicrm_ansible')
+      ->key(['nid' => $node->nid])
+      ->fields([
+        'civicrm_cron_interval' => $node->civicrm_ansible_cron_interval,
+        'sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
+        'mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
+        'mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys,
+      ])
+      ->execute();
   }
 }
 
@@ -164,11 +158,11 @@ function hosting_civicrm_ansible_form_hosting_settings_alter(&$form, $form_state
 /**
  * Implements hook_form_FORM_ID_alter().
  *
- * Add the CiviCRM cron interval setting to site node forms.
+ * Add the CiviCRM cron interval setting to 'site' content-type node forms.
  */
 function hosting_civicrm_ansible_form_site_node_form_alter(&$form, $form_state) {
   if (user_access('edit site')) {
-    if (isset($form['nid']['#value']) && _is_civicrm_platform($form['platform']['#value'])) {
+    if (isset($form['nid']['#value'])) {
       $form['civicrm_ansible_sftpchroot_keys'] = [
         '#type' => 'textarea',
         '#title' => t('Ansible - sFTP chroot public keys'),
@@ -205,6 +199,15 @@ function hosting_civicrm_ansible_form_site_node_form_alter(&$form, $form_state) 
       return $form;
     }
   }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Add the CiviCRM cron interval setting to wpsite content-type node forms.
+ */
+function hosting_civicrm_ansible_form_wpsite_node_form_alter(&$form, $form_state) {
+  hosting_civicrm_ansible_form_site_node_form_alter($form, $form_state);
 }
 
 /**
