@@ -32,6 +32,7 @@ function hosting_civicrm_ansible_node_load($nodes, $types) {
       $node->civicrm_ansible_cron_interval = $result->civicrm_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900);
     }
 
+    $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: 'admin';
     $node->civicrm_ansible_sftpchroot_keys = $result->sftpchroot_keys ?: '';
     $node->civicrm_ansible_mysqlro_keys = $result->mysqlro_keys ?: '';
     $node->civicrm_ansible_mysqlrw_keys = $result->mysqlrw_keys ?: '';
@@ -69,6 +70,12 @@ function hosting_civicrm_ansible_node_view($node, $view_mode, $langcode) {
       '#title' => t('Ansible - CiviCRM cron run'),
       '#weight' => 10,
       '#markup' => $cron_text,
+    ];
+    $node->content['hosting_civicrm_ansible']['ansible_civicrm_cron_user'] = [
+      '#type' => 'item',
+      '#title' => t('Ansible - CiviCRM cron user'),
+      '#weight' => 11,
+      '#markup' => $node->civicrm_ansible_cron_user,
     ];
   }
 
@@ -128,6 +135,7 @@ function hosting_civicrm_ansible_node_update($node) {
       ->key(['nid' => $node->nid])
       ->fields([
         'civicrm_cron_interval' => $node->civicrm_ansible_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900),
+        'civicrm_cron_user' => $node->civicrm_ansible_cron_user,
         'sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
         'mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
         'mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys,
@@ -194,6 +202,14 @@ function hosting_civicrm_ansible_form_site_node_form_alter(&$form, $form_state) 
         '#description' => t('TODO: Not implemented. Cron will always run every 15 minutes. The CiviCRM cron will be automatically run for this site at the interval defined here.'),
         '#default_value' => $form['#node']->civicrm_ansible_cron_interval,
         '#weight' => 10,
+      ];
+
+      $form['civicrm_ansible_cron_user'] = [
+        '#type' => 'textfield',
+        '#title' => t('Ansible - CiviCRM cron user'),
+        '#description' => t('Run the CiviCRM cron using this user. Defaults to "admin" on WordPress, and to uid 1 on Drupal. It can be a username or (on Drupal) a uid.'),
+        '#default_value' => $form['#node']->civicrm_ansible_cron_user,
+        '#weight' => 11,
       ];
 
       return $form;
@@ -273,6 +289,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'site_root' => $node->publish_path,
       'site_path' => $node->publish_path . '/sites/' . $node->title,
       'civicrm_ansible_cron_interval' => $node->civicrm_ansible_cron_interval,
+      'civicrm_ansible_cron_user' => $node->civicrm_ansible_cron_user,
       'civicrm_ansible_sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
       'civicrm_ansible_mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys,
       'civicrm_ansible_mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
