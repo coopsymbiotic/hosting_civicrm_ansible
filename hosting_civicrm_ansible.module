@@ -291,6 +291,17 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'civicrm_ansible_mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
     ];
 
+    // No idea why this is necessary
+    if (file_exists('/var/aegir/.drush/provision_symbiotic/provision_symbiotic.drush.inc')) {
+      @require_once '/var/aegir/.drush/provision_symbiotic/provision_symbiotic.drush.inc';
+    }
+
+    if (function_exists('provision_symbiotic_is_dev_site')) {
+      if (provision_symbiotic_is_dev_site($node->title)) {
+        $inventory->{'_meta'}->hostvars->{$node->title}['disable_notifications'] = "1";
+      }
+    }
+
     $inventory->civicrm_sites['hosts'][] = $node->title;
   }
 }
