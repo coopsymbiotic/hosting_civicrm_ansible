@@ -285,7 +285,9 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'site_root' => $node->publish_path,
       'site_path' => $node->publish_path . '/sites/' . $node->title,
       'civicrm_ansible_cron_interval' => $node->civicrm_ansible_cron_interval,
-      'civicrm_ansible_cron_user' => $node->civicrm_ansible_cron_user,
+      'civicrm_ansible_cron_user' => $node->civicrm_ansible_cron_user ?: 'admin',
+      // Compatibility with hosting_wordpress
+      'cron_user' => $node->civicrm_ansible_cron_user ?: 'admin',
       'civicrm_ansible_sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
       'civicrm_ansible_mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys,
       'civicrm_ansible_mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
