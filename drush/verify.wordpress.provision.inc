@@ -14,10 +14,6 @@
  * Run CiviCRM Ansible playbooks.
  */
 function drush_provision_civicrm_ansible_post_provision_wordpress_verify($url = NULL) {
-  if (!_provision_civicrm_is_site_context(TRUE)) {
-    return;
-  }
-
   if (d()->type == 'wpsite') {
     drush_log(dt("CiviCRM Ansible: running aegir-ansible !site", ['!site' => d()->uri]), 'ok');
 
