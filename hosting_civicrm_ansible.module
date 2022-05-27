@@ -292,6 +292,8 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'civicrm_ansible_sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
       'civicrm_ansible_mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys,
       'civicrm_ansible_mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
+      // Useful for stats and other things
+      'created_date' => date('Y-m-d H:i:s', $node->created),
     ];
 
     // No idea why this is necessary
