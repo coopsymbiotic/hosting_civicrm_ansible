@@ -30,7 +30,7 @@ function hosting_civicrm_ansible_node_load($nodes, $types) {
     }
 
     if ($node->type == 'site') {
-      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin');
+      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', '1');
     }
     else {
       $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: variable_get('hosting_civicrm_default_wp_cron_user', 'admin');
