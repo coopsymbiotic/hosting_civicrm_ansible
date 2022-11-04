@@ -19,6 +19,12 @@ function hosting_civicrm_ansible_node_load($nodes, $types) {
       continue;
     }
 
+    // We should probably use some other node hook  to only run this when viewing the site node
+    // otherwise it runs a lot of commands for other sites, such as those displayed in the task list
+    if (arg(0) != 'node' || arg(1) != $node->nid) {
+      return;
+    }
+
     // Fetch custom data for this site
     $result = db_query('SELECT * FROM {hosting_civicrm_ansible} WHERE nid = :nid', array(':nid' => $node->nid))->fetchObject();
 
