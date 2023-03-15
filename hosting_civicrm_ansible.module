@@ -23,14 +23,20 @@ function hosting_civicrm_ansible_node_load($nodes, $types) {
     $result = db_query('SELECT * FROM {hosting_civicrm_ansible} WHERE nid = :nid', array(':nid' => $node->nid))->fetchObject();
 
     if ($result->civicrm_cron_interval) {
-      $node->hosting_ansible_cron_last_output = _hosting_ansible_cron_last_output($node);
+      // Only display the cron output if we are really viewing the node
+      // otherwise it runs a lot of commands for other sites, such as those displayed in the task list
+      $node->hosting_ansible_cron_last_output = '';
+
+      if (arg(0) == 'node' || arg(1) == $node->nid) {
+        $node->hosting_ansible_cron_last_output = _hosting_ansible_cron_last_output($node);
+      }
 
       // If no specific cron interval was set for this site, use the default.
       $node->civicrm_ansible_cron_interval = $result->civicrm_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900);
     }
 
     if ($node->type == 'site') {
-      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin');
+      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', '1');
     }
     else {
       $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: variable_get('hosting_civicrm_default_wp_cron_user', 'admin');
@@ -239,7 +245,7 @@ function hosting_civicrm_ansible_interval_options() {
   $options = [
     HOSTING_CIVICRM_ANSIBLE_CRON_SITE_DISABLED => t('Disabled'),
   ];
-  $options += drupal_map_assoc(array(60, 300, 900, 1800, 3600, 21600, 86400), 'format_interval');
+  $options += drupal_map_assoc(array(60, 300, 600, 900, 1800, 3600, 21600, 86400), 'format_interval');
 
   return $options;
 }
@@ -302,10 +308,10 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'site_root' => $node->publish_path,
       'site_path' => $node->publish_path . '/sites/' . $node->title,
       'civicrm_ansible_cron_interval' => $node->civicrm_ansible_cron_interval,
-      'civicrm_ansible_cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
+      'civicrm_ansible_cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', '1'),
       'civicrm_site_key' => $node->civicrm_sitekey ?: '',
       // Compatibility with hosting_wordpress
-      'cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
+      'cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', '1'),
       'civicrm_ansible_sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
       'civicrm_ansible_mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys,
       'civicrm_ansible_mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
