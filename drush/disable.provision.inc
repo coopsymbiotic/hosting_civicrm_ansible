@@ -8,10 +8,6 @@
  */
 function drush_provision_civicrm_ansible_pre_provision_disable($url = NULL) {
   if (d()->type == 'site') {
-    ob_start();
-    passthru('sudo /usr/local/bin/aegir-ansible ' . escapeshellarg(d()->uri) . ' civicrm-sites-disable');
-    $output = ob_get_clean();
-
-    drush_log(dt("CiviCRM Ansible: !output", ['!output' => '<pre>' . $output . '</pre>']), 'ok');
+    provision_civicrm_ansible_execute(d()->uri, 'civicrm-sites-disable');
   }
 }
