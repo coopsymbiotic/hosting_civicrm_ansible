@@ -281,7 +281,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
     ],
   ];
 
-  $nids = hosting_civicrm_get_sites();
+  $nids = !empty($_REQUEST['include_disabled']) ? hosting_civicrm_ansible_get_all_sites() : hosting_civicrm_get_sites();
   $civicrm_nodes = node_load_multiple($nids);
 
   $usage_log = NULL;
@@ -407,4 +407,31 @@ function hosting_civicrm_ansible_format_diskusage(&$formatted, $val, $total, $le
       ];
     }
   }
+}
+
+/**
+ * Based on hosting_civicrm_get_sites() but also returns disabled sites
+ */
+function hosting_civicrm_ansible_get_all_sites() {
+  $platforms = hosting_civicrm_get_platforms();
+  $sites = [];
+
+  if (!$order_by) {
+    $order_by = 'nid';
+  }
+
+  foreach ($platforms as $platform) {
+    // Get all the non-deleted sites on the platform (includes disabled sites)
+    $result = db_query('SELECT n.nid FROM {node} n LEFT JOIN {hosting_site} s ON n.nid=s.nid WHERE n.type = :type and s.status != :status and s.platform = :platform', [
+      ':type' => 'site',
+      ':platform' => $platform,
+      ':status' => HOSTING_SITE_DELETED,
+    ]);
+
+    foreach ($result as $record) {
+      $sites[] = $record->nid;
+    }
+  }
+
+  return $sites;
 }
