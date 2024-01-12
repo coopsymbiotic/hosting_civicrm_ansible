@@ -45,25 +45,53 @@ function provision_civicrm_ansible_provision_register_autoload() {
  * @param $tag String Ansible tag
  */
 function provision_civicrm_ansible_execute($site, $tag) {
-  ob_start();
-  passthru('sudo /usr/local/bin/aegir-ansible ' . escapeshellarg($site) . ' ' . escapeshellarg($tag));
-  $output = ob_get_clean();
-  $lines = explode("\n", $output);
-  drush_log(dt('CiviCRM Ansible output...'), 'ok');
-  foreach ($lines as $line) {
-    $line = trim($line);
-    $line = preg_replace('/ \*+$/', '', $line);
-    if (!$line) {
-      continue;
-    }
-    if (preg_match('/^(fail|error)/i', $line)) {
-      drush_log($line, 'error');
-    }
-    elseif (preg_match('/warning/i', $line)) {
-      drush_log($line, 'warning');
-    }
-    else {
-      drush_log($line, 'ok');
+  $command = 'sudo /usr/local/bin/aegir-ansible ' . escapeshellarg($site) . ' ' . escapeshellarg($tag) . ' 2>&1';
+  drush_log(dt('CiviCRM Ansible: running: %command', ['%command' => $command]), 'ok');
+
+  // Using this rather complicated method so that ansible does not complain about non-blocking IO
+  // Somewhat avoiding drush functions because they do not seem to work
+  $descriptors = [
+    // respectively stdin, stdout, stderr
+    0 => ['pipe', 'r'],
+    1 => ['pipe', 'w'],
+    2 => ['pipe', 'w'],
+  ];
+
+  $process = proc_open($command, $descriptors, $pipes);
+
+  if (is_resource($process)) {
+    // Close input pipe
+    fclose($pipes[0]);
+
+    // Read output and error
+    // ignoring error output because they were piped to stdout
+    $output = stream_get_contents($pipes[1]);
+    // $error = stream_get_contents($pipes[2]);
+
+    // Close output and error pipes
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    // Close the process
+    $exitCode = proc_close($process);
+
+    drush_log(dt('CiviCRM Ansible output...'), $exitCode == 0 ? 'ok' : 'error');
+    $lines = explode("\n", $output);
+
+    foreach ($lines as $line) {
+      $line = trim($line);
+      $line = preg_replace('/ \*+$/', '', $line);
+      if (!$line) {
+        continue;
+      }
+      if (preg_match('/^(fail|error)/i', $line)) {
+        drush_log($line, 'error');
+      }
+      elseif (preg_match('/warning/i', $line)) {
+        drush_log($line, 'warning');
+      }
+      else {
+        drush_log($line, 'ok');
+      }
     }
   }
 }
