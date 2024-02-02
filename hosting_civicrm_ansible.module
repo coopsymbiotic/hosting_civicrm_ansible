@@ -300,14 +300,20 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       $last_login = $matches[1];
     }
 
+    // Detect if Drupal is using a web subdirectory
+    $site_root = $node->publish_path;
+    if (is_dir($site_root . '/web/')) {
+      $site_root = $site_root . '/web/';
+    }
+
     $inventory->{'_meta'}->hostvars->{$node->title} = [
       // @todo drupal=d7, drupal8, wordpress
       'cms' => 'drupal',
       'site_shortname' => $shortname,
       // @todo Not sure if this is the right way of getting the root and site_path?
-      'site_root' => $node->publish_path,
-      'site_path' => $node->publish_path . '/sites/' . $node->title,
-      'civicrm_ansible_cron_interval' => $node->civicrm_ansible_cron_interval,
+      'site_root' => $site_root,
+      'site_path' => $site_root . 'sites/' . $node->title,
+      'civicrm_ansible_cron_interval' => $node->civicrm_ansible_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900),
       'civicrm_ansible_cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', '1'),
       'civicrm_site_key' => $node->civicrm_sitekey ?: '',
       // Compatibility with hosting_wordpress
