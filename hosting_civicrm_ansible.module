@@ -305,6 +305,10 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
     if (is_dir($site_root . '/web/')) {
       $site_root = $site_root . '/web/';
     }
+    // Make sure we have a trailing slash
+    if (substr($site_root, -1, 1) !== '/') {
+      $site_root .= '/';
+    }
 
     $inventory->{'_meta'}->hostvars->{$node->title} = [
       // @todo drupal=d7, drupal8, wordpress
