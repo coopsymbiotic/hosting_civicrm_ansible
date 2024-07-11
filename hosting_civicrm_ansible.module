@@ -91,6 +91,18 @@ function hosting_civicrm_ansible_node_view($node, $view_mode, $langcode) {
     // Display database disk space usage
     $stats = [];
 
+    // Workaround a bug where the db_name is not being populated anyore in hosting_site
+    // to some extent, it's OK, because it's duplicated information
+    if (empty($node->db_name)) {
+      $drushrc = $node->publish_path . '/sites/' . $node->title . '/drushrc.php';
+      if (file_exists($drushrc)) {
+        require_once $node->publish_path . '/sites/' . $node->title . '/drushrc.php';
+        if (!empty($options['db_name'])) {
+          $node->db_name = $options['db_name'];
+        }
+      }
+    }
+
     if (isset($node->db_name)) {
       exec('sudo /usr/local/bin/aegir-db-filestats ' . escapeshellarg($node->db_name), $stats);
     }
