@@ -22,6 +22,10 @@ function hosting_civicrm_ansible_node_load($nodes, $types) {
     // Fetch custom data for this site
     $result = db_query('SELECT * FROM {hosting_civicrm_ansible} WHERE nid = :nid', array(':nid' => $node->nid))->fetchObject();
 
+    if (empty($result)) {
+      return;
+    }
+
     if ($result->civicrm_cron_interval) {
       // Only display the cron output if we are really viewing the node
       // otherwise it runs a lot of commands for other sites, such as those displayed in the task list
