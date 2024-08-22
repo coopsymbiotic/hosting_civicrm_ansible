@@ -83,7 +83,7 @@ function provision_civicrm_ansible_execute($site, $tag) {
       if (!$line) {
         continue;
       }
-      if (preg_match('/^(fail|error)/i', $line)) {
+      if (preg_match('/^(fail|error|fatal)/i', $line)) {
         drush_log($line, 'error');
       }
       elseif (preg_match('/warning/i', $line)) {
