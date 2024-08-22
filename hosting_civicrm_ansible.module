@@ -36,7 +36,7 @@ function hosting_civicrm_ansible_node_load($nodes, $types) {
     }
 
     if ($node->type == 'site') {
-      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', '1');
+      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin');
     }
     else {
       $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: variable_get('hosting_civicrm_default_wp_cron_user', 'admin');
@@ -215,7 +215,7 @@ function hosting_civicrm_ansible_form_site_node_form_alter(&$form, $form_state) 
       $form['civicrm_ansible_cron_user'] = [
         '#type' => 'textfield',
         '#title' => t('Ansible - CiviCRM cron user'),
-        '#description' => t('Run the CiviCRM cron using this user. Defaults to "admin" on WordPress, and to uid 1 on Drupal. It can be a username or (on Drupal) a uid. Can be changed by setting the hosting_civicrm_default_drupal_cron_user or hosting_civicrm_default_wp_cron_user variables.'),
+        '#description' => t('Run the CiviCRM cron using this user. Defaults to "admin" on WordPress and Drupal. The cron is run using cv, which requires a username (it cannot be an ID). Can be changed by setting the hosting_civicrm_default_drupal_cron_user or hosting_civicrm_default_wp_cron_user variables.'),
         '#default_value' => $form['#node']->civicrm_ansible_cron_user,
         '#weight' => 11,
       ];
@@ -314,10 +314,10 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'site_root' => $site_root,
       'site_path' => $site_root . 'sites/' . $node->title,
       'civicrm_ansible_cron_interval' => $node->civicrm_ansible_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900),
-      'civicrm_ansible_cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', '1'),
+      'civicrm_ansible_cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
       'civicrm_site_key' => $node->civicrm_sitekey ?: '',
       // Compatibility with hosting_wordpress
-      'cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', '1'),
+      'cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
       'civicrm_ansible_sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
       'civicrm_ansible_mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys,
       'civicrm_ansible_mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
