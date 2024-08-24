@@ -77,13 +77,13 @@ function provision_civicrm_ansible_execute($site, $tag) {
     drush_log(dt('CiviCRM Ansible output...'), $exitCode == 0 ? 'ok' : 'error');
     $lines = explode("\n", $output);
 
-    foreach ($lines as $line) {
+    foreach ($lines as $key => $line) {
       $line = trim($line);
       $line = preg_replace('/ \*+$/', '', $line);
       if (!$line) {
         continue;
       }
-      if (preg_match('/^(fail|error|fatal)/i', $line)) {
+      if (preg_match('/^(fail|error|fatal)/i', $line) && $lines[$key+1] != '...ignoring') {
         drush_log($line, 'error');
       }
       elseif (preg_match('/warning/i', $line)) {
