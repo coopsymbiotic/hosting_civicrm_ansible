@@ -87,7 +87,7 @@ function hosting_civicrm_ansible_node_view($node, $view_mode, $langcode) {
       '#type' => 'item',
       '#title' => t('Ansible - CiviCRM cron user'),
       '#weight' => 11,
-      '#markup' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_wp_cron_user', 'admin'),
+      '#markup' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
     ];
   }
 
@@ -159,7 +159,7 @@ function hosting_civicrm_ansible_node_update($node) {
       ->key(['nid' => $node->nid])
       ->fields([
         'civicrm_cron_interval' => $node->civicrm_ansible_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900),
-        'civicrm_cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_wp_cron_user', 'admin'),
+        'civicrm_cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
         'sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
         'mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
         'mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys,
