@@ -74,7 +74,8 @@ function provision_civicrm_ansible_execute($site, $tag) {
     // Close the process
     $exitCode = proc_close($process);
 
-    drush_log(dt('CiviCRM Ansible output...'), $exitCode == 0 ? 'ok' : 'error');
+    // @todo This warning should be 'error' but we are having too many problems with Aegir rolling-back for no reason
+    drush_log(dt('CiviCRM Ansible output...'), $exitCode == 0 ? 'ok' : 'warning');
     $lines = explode("\n", $output);
 
     foreach ($lines as $key => $line) {
@@ -84,7 +85,8 @@ function provision_civicrm_ansible_execute($site, $tag) {
         continue;
       }
       if (preg_match('/^(fail|error|fatal)/i', $line) && $lines[$key+1] != '...ignoring') {
-        drush_log($line, 'error');
+        // @todo This warning should be 'error' but we are having too many problems with Aegir rolling-back for no reason
+        drush_log($line, 'warning');
       }
       elseif (preg_match('/warning/i', $line)) {
         drush_log($line, 'warning');
