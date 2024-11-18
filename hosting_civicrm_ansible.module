@@ -471,3 +471,107 @@ function hosting_civicrm_ansible_get_all_sites() {
 
   return $sites;
 }
+
+/**
+ * Helper function to execute and log the output of an Ansible command
+ *
+ * Based on provision_civicrm_ansible_execute() but that function was
+ * specific to CiviCRM sites and using tags, using the old Symbiotic playbooks.
+ * Only supports Backdrop.
+ *
+ * @param $site String Ansible resource
+ * @param $playbook String Ansible playbook
+ */
+function hosting_civicrm_ansible_execute($task) {
+  // Extract the resource name and playbook to run
+  $resource = $playbook = '';
+  $node = NULL;
+
+  hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: task_command: ' . $task->task_command);
+
+  if ($task->task_command == 'provision-verify') {
+    $node = node_load($task->rid);
+    hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: type: ' . $node->type);
+    if ($node->type == 'platform') {
+      $playbook = 'platform/verify.yml';
+      // Ex: "/var/aegir/platforms/civicrm-prod" becomes "civicrm-prod"
+      $additions = db_query('SELECT publish_path FROM {hosting_platform} WHERE vid = :vid', array(':vid' => $node->vid))->fetchObject();
+      $resource = substr($additions->publish_path, strlen('/var/aegir/platforms/'));
+      $resource = preg_replace('#/web$#', '', $resource);
+      hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: resource: ' . $resource . ' / ' . print_r($additions->publish_path, 1));
+    }
+  }
+
+  if (!$resource || !$playbook) {
+    hosting_task_log($task->vid, 'error', 'hosting_civicrm_ansible_execute could not find the resource or playbook for task: ' . print_r($task, 1) . ' -- node: ' . print_r($node, 1), 'error');
+    $task->task_status = HOSTING_TASK_ERROR;
+    node_save($task);
+    return;
+  }
+
+  $command = 'sudo /usr/local/bin/aegir-ansible ' . escapeshellarg($resource) . ' ' . escapeshellarg($playbook);
+  hosting_task_log($task->vid, 'ok', bt('CiviCRM Ansible: running: !command', ['!command' => $command]));
+  // We append this here to make the above easier to read
+  $command .= ' 2>&1';
+
+  $task->task_status = HOSTING_TASK_PROCESSING;
+  node_save($task);
+
+  // Using this rather complicated method so that ansible does not complain about non-blocking IO
+  // Somewhat avoiding drush functions because they do not seem to work
+  $descriptors = [
+    // respectively stdin, stdout, stderr
+    0 => ['pipe', 'r'],
+    1 => ['pipe', 'w'],
+    2 => ['pipe', 'w'],
+  ];
+
+  $process = proc_open($command, $descriptors, $pipes);
+
+  if (is_resource($process)) {
+    // Close input pipe
+    fclose($pipes[0]);
+
+    // Read output and error
+    // ignoring error output because they were piped to stdout
+    $output = stream_get_contents($pipes[1]);
+    // $error = stream_get_contents($pipes[2]);
+
+    // Close output and error pipes
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    // Close the process
+    $exitCode = proc_close($process);
+
+    // @todo This warning should be 'error' but we are having too many problems with Aegir rolling-back for no reason
+    hosting_task_log($task->vid, $exitCode == 0 ? 'ok' : 'warning', 'CiviCRM Ansible output...');
+    $task->task_status = $exitCode == 0 ? HOSTING_TASK_SUCCESS : HOSTING_TASK_WARNING;
+    $lines = explode("\n", $output);
+
+    foreach ($lines as $key => $line) {
+      $line = trim($line);
+      $line = preg_replace('/ \*+$/', '', $line);
+      if (!$line) {
+        continue;
+      }
+      if (preg_match('/^(fail|error|fatal)/i', $line) && $lines[$key+1] != '...ignoring') {
+        // @todo This warning should be 'error' but we are having too many problems with Aegir rolling-back for no reason
+        hosting_task_log($task->vid, 'warning', $line);
+        $task->task_status = HOSTING_TASK_WARNING;
+      }
+      elseif (preg_match('/warning/i', $line)) {
+        hosting_task_log($task->vid, 'warning', $line);
+        $task->task_status = HOSTING_TASK_WARNING;
+      }
+      elseif (preg_match('/^changed:/', $lines[$key+1])) {
+        hosting_task_log($task->vid, 'success', $line);
+      }
+      else {
+        hosting_task_log($task->vid, 'info', $line);
+      }
+    }
+  }
+
+  // Update the task_status
+  node_save($task);
+}
