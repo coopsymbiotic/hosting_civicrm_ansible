@@ -611,5 +611,6 @@ function hosting_civicrm_ansible_execute($task) {
   }
 
   // Update the task_status
+  $task->executed = time();
   node_save($task);
 }
