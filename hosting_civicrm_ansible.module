@@ -536,7 +536,7 @@ function hosting_civicrm_ansible_execute($task) {
       $additions = db_query('SELECT publish_path FROM {hosting_platform} WHERE vid = :vid', array(':vid' => $node->vid))->fetchObject();
       $resource = substr($additions->publish_path, strlen('/var/aegir/platforms/'));
       $resource = preg_replace('#/web$#', '', $resource);
-      hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: resource: ' . $resource . ' / ' . print_r($additions->publish_path, 1));
+      hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: resource: ' . $resource);
     }
   }
 
