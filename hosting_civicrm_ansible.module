@@ -306,6 +306,12 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'ansible_ssh_host' => 'localhost',
     ],
   ];
+  $inventory->platforms = [
+    'hosts' => [],
+    'vars' => [
+      'ansible_ssh_host' => 'localhost',
+    ],
+  ];
 
   $nids = !empty($_REQUEST['include_disabled']) ? hosting_civicrm_ansible_get_all_sites() : hosting_civicrm_get_sites();
   $civicrm_nodes = node_load_multiple($nids);
@@ -368,6 +374,15 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
     }
 
     $inventory->civicrm_sites['hosts'][] = $node->title;
+  }
+
+  // Platforms
+  $platforms = hosting_civicrm_ansible_get_all_platforms();
+  foreach ($platforms as $platform) {
+    $resource = substr($platform['publish_path'], strlen('/var/aegir/platforms/'));
+    $resource = preg_replace('#/web$#', '', $resource);
+    $inventory->platforms['hosts'][] = $resource;
+    $inventory->{'_meta'}->hostvars->{$resource} = $platform;
   }
 }
 
@@ -470,6 +485,29 @@ function hosting_civicrm_ansible_get_all_sites() {
   }
 
   return $sites;
+}
+
+/**
+ * Returns all platforms
+ */
+function hosting_civicrm_ansible_get_all_platforms() {
+  $platforms = [];
+
+  $result = db_query('SELECT p.* FROM {hosting_platform} p LEFT JOIN {node} n ON n.nid = p.nid WHERE p.status != :status', [
+    ':status' => HOSTING_PLATFORM_DELETED,
+  ]);
+
+  foreach ($result as $record) {
+    $platforms[] = [
+      'nid' => $record->nid,
+      'web_server_nid' => $record->web_server,
+      'publish_path' => $record->publish_path,
+      'verified' => $record->verified,
+      'status' => $record->status,
+    ];
+  }
+
+  return $platforms;
 }
 
 /**
