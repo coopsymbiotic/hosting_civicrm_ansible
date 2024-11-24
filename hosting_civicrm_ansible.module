@@ -312,18 +312,23 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'ansible_ssh_host' => 'localhost',
     ],
   ];
+  $inventory->servers = [
+    'hosts' => [],
+    'vars' => [
+      'ansible_ssh_host' => 'localhost',
+    ],
+  ];
 
-  $nids = !empty($_REQUEST['include_disabled']) ? hosting_civicrm_ansible_get_all_sites() : hosting_civicrm_get_sites();
-  $civicrm_nodes = node_load_multiple($nids);
-
-  $usage_log = NULL;
+  $nids = hosting_civicrm_ansible_get_all_sites($_REQUEST['include_disabled'] ?? FALSE);
+  $site_nodes = node_load_multiple($nids);
 
   // Get the last-login from our usage stats, if available
+  $usage_log = NULL;
   if (file_exists('/var/log/aegir/usage.log')) {
     $usage_log = file_get_contents('/var/log/aegir/usage.log');
   }
 
-  foreach ($civicrm_nodes as $node) {
+  foreach ($site_nodes as $node) {
     // Remove the top-level domain name from the shortname
     $shortname = hosting_civicrm_ansible_inventory_shortname($node->title);
 
@@ -341,14 +346,28 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
     if (substr($site_root, -1, 1) !== '/') {
       $site_root .= '/';
     }
-
+    $profile = NULL;
+    if ($node->profile) {
+      $profile_node = node_load($node->profile);
+      $profile = $profile_node->short_name;
+    }
     $inventory->{'_meta'}->hostvars->{$node->title} = [
-      // @todo drupal=d7, drupal8, wordpress
+      'nid' => $node->nid,
+      // The 'cms' is only for backwards compatibility
       'cms' => 'drupal',
+      'software' => $node->software ?? '',
+      'version' => $node->version ?? '',
+      'profile' => $profile,
       'site_shortname' => $shortname,
       // @todo Not sure if this is the right way of getting the root and site_path?
       'site_root' => $site_root,
       'site_path' => $site_root . 'sites/' . $node->title,
+      'site_status' => $node->site_status,
+      'db_name' => $node->db_name ?? '',
+      'db_passwd' => $node->db_passwd ?? '',
+      'db_host' => $node->servers['db']->title,
+      'db_port' => $node->servers['db']->services['db']->port,
+      // @todo db https setting would be nice
       'civicrm_ansible_cron_interval' => $node->civicrm_ansible_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900),
       'civicrm_ansible_cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
       'civicrm_site_key' => $node->civicrm_sitekey ?: '',
@@ -383,6 +402,33 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
     $resource = preg_replace('#/web$#', '', $resource);
     $inventory->platforms['hosts'][] = $resource;
     $inventory->{'_meta'}->hostvars->{$resource} = $platform;
+  }
+
+  // Servers
+  $servers = hosting_get_servers('db');
+  $servers += hosting_get_servers('http');
+
+  foreach ($servers as $nid => $name) {
+    $node = node_load($nid);
+    $inventory->servers['hosts'][] = $name;
+    $inventory->{'_meta'}->hostvars->{$name} = [
+      'hosting_name' => $node->hosting_name,
+    ];
+    if (!empty($node->services['db'])) {
+      $inventory->{'_meta'}->hostvars->{$name}['db'] = [];
+      $inventory->{'_meta'}->hostvars->{$name}['db']['type'] = $node->services['db']->type;
+      $inventory->{'_meta'}->hostvars->{$name}['db']['available'] = $node->services['db']->available;
+      $inventory->{'_meta'}->hostvars->{$name}['db']['port'] = $node->services['db']->port ?? 3306;
+      $inventory->{'_meta'}->hostvars->{$name}['db']['db_user'] = $node->services['db']->db_user;
+      $inventory->{'_meta'}->hostvars->{$name}['db']['db_passwd'] = $node->services['db']->db_passwd;
+    }
+    if (!empty($node->services['http'])) {
+      $inventory->{'_meta'}->hostvars->{$name}['http'] = [];
+      $inventory->{'_meta'}->hostvars->{$name}['http']['type'] = $node->services['http']->type;
+      $inventory->{'_meta'}->hostvars->{$name}['http']['available'] = $node->services['http']->available;
+      $inventory->{'_meta'}->hostvars->{$name}['http']['port'] = $node->services['http']->port ?? 80;
+      $inventory->{'_meta'}->hostvars->{$name}['http']['restart_cmd'] = $node->services['http']->restart_cmd ?? '';
+    }
   }
 }
 
@@ -463,25 +509,24 @@ function hosting_civicrm_ansible_format_diskusage(&$formatted, $val, $total, $le
 /**
  * Based on hosting_civicrm_get_sites() but also returns disabled sites
  */
-function hosting_civicrm_ansible_get_all_sites() {
-  $platforms = hosting_civicrm_get_platforms();
+function hosting_civicrm_ansible_get_all_sites($include_disabled = FALSE) {
   $sites = [];
 
-  if (!$order_by) {
-    $order_by = 'nid';
-  }
-
-  foreach ($platforms as $platform) {
-    // Get all the non-deleted sites on the platform (includes disabled sites)
-    $result = db_query('SELECT n.nid FROM {node} n LEFT JOIN {hosting_site} s ON n.nid=s.nid WHERE n.type = :type and s.status != :status and s.platform = :platform', [
+  if ($include_disabled) {
+    $result = db_query('SELECT n.nid FROM {node} n LEFT JOIN {hosting_site} s ON n.nid=s.nid WHERE n.type = :type and s.status != :status', [
       ':type' => 'site',
-      ':platform' => $platform,
       ':status' => HOSTING_SITE_DELETED,
     ]);
+  }
+  else {
+    $result = db_query('SELECT n.nid FROM {node} n LEFT JOIN {hosting_site} s ON n.nid=s.nid WHERE n.type = :type and s.status = :status', [
+      ':type' => 'site',
+      ':status' => HOSTING_SITE_ENABLED,
+    ]);
+  }
 
-    foreach ($result as $record) {
-      $sites[] = $record->nid;
-    }
+  foreach ($result as $record) {
+    $sites[] = $record->nid;
   }
 
   return $sites;
@@ -525,20 +570,31 @@ function hosting_civicrm_ansible_execute($task) {
   $resource = $playbook = '';
   $node = NULL;
 
+  // Ex: provision-verify
   hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: task_command: ' . $task->task_command);
+  $task_parts = explode('-', $task->task_command);
+  $action = $task_parts[1] ?? NULL;
 
-  if ($task->task_command == 'provision-verify') {
-    $node = node_load($task->rid);
-    hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: type: ' . $node->type);
-    if ($node->type == 'platform') {
-      $playbook = 'platform/verify.yml';
-      // Ex: "/var/aegir/platforms/civicrm-prod" becomes "civicrm-prod"
-      $additions = db_query('SELECT publish_path FROM {hosting_platform} WHERE vid = :vid', array(':vid' => $node->vid))->fetchObject();
-      $resource = substr($additions->publish_path, strlen('/var/aegir/platforms/'));
-      $resource = preg_replace('#/web$#', '', $resource);
-      hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: resource: ' . $resource);
-    }
+  if ($task_parts[0] != 'provision') {
+    throw new Exception('Unexpected task format: ' . $task->task_command . " Expected: provision-xyz");
   }
+
+  $node = node_load($task->rid);
+  // Ex: site, platform, server
+  $entity = $node->type;
+  // Ex: site uri, server hostname
+  $resource = $node->title;
+  $playbook = $entity . '/' . $action . '.yml';
+  hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: preparing to run: ' . $playbook);
+
+  if ($action == 'verify' && $entity == 'platform') {
+    // Ex: "/var/aegir/platforms/civicrm-prod" becomes "civicrm-prod"
+    $additions = db_query('SELECT publish_path FROM {hosting_platform} WHERE vid = :vid', array(':vid' => $node->vid))->fetchObject();
+    $resource = substr($additions->publish_path, strlen('/var/aegir/platforms/'));
+    $resource = preg_replace('#/web$#', '', $resource);
+  }
+
+  hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: inventory resource: ' . $resource);
 
   if (!$resource || !$playbook) {
     hosting_task_log($task->vid, 'error', 'hosting_civicrm_ansible_execute could not find the resource or playbook for task: ' . print_r($task, 1) . ' -- node: ' . print_r($node, 1), 'error');
