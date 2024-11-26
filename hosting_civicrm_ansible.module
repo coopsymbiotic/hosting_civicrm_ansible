@@ -398,9 +398,15 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
   // Platforms
   $platforms = hosting_civicrm_ansible_get_all_platforms();
   foreach ($platforms as $platform) {
-    $resource = substr($platform['publish_path'], strlen('/var/aegir/platforms/'));
-    $resource = preg_replace('#/web$#', '', $resource);
-    $inventory->platforms['hosts'][] = $resource;
+    // Exception for the admin UI (hostmaster)
+    if ($platform['publish_path'] == '/var/aegir/admin/web') {
+      $inventory->platforms['hosts'][] = 'admin';
+    }
+    else {
+      $resource = substr($platform['publish_path'], strlen('/var/aegir/platforms/'));
+      $resource = preg_replace('#/web$#', '', $resource);
+      $inventory->platforms['hosts'][] = $resource;
+    }
     $inventory->{'_meta'}->hostvars->{$resource} = $platform;
   }
 
