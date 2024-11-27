@@ -609,7 +609,7 @@ function hosting_civicrm_ansible_execute($task) {
     return;
   }
 
-  $command = 'sudo /usr/local/bin/aegir-ansible ' . escapeshellarg($resource) . ' ' . escapeshellarg($playbook);
+  $command = 'sudo /usr/local/bin/aegir-ansible ' . escapeshellarg($resource) . ' ' . escapeshellarg($playbook) . ' ' . $task->nid;
   hosting_task_log($task->vid, 'ok', bt('CiviCRM Ansible: running: !command', ['!command' => $command]));
   // We append this here to make the above easier to read
   $command .= ' 2>&1';
