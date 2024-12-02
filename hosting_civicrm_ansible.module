@@ -285,9 +285,23 @@ function _hosting_ansible_cron_last_output($node) {
   // Highlight the last cron run
   $output = preg_replace('/; (.* ago)/', '; <span class="hosting-civicrm-ansible-highlight">\1</span>', $output);
 
-  // WordPress core cron
+  // CMS cron
+  $service = NULL;
+
+  if ($node->type == 'site' && !empty($node->software)) {
+    if (substr($node->software, 0, 6) == 'Drupal') {
+      $service = 'd7corecron_' . $shortname;
+    }
+    if ($node->software == 'WordPress') {
+      $service = 'wpcorecron_' . $shortname;
+    }
+  }
+  // Compatibility with older Aegir
   if ($node->type == 'wpsite') {
     $service = 'wpcorecron_' . $shortname;
+  }
+
+  if ($service) {
     ob_start();
     passthru('sudo /usr/local/bin/aegir-systemctl-status ' . escapeshellarg($service));
     $out2 = ob_get_clean();
