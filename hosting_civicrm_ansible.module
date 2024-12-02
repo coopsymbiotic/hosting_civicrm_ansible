@@ -82,6 +82,10 @@ function hosting_civicrm_ansible_node_view($node, $view_mode, $langcode) {
       '#title' => t('Ansible - CiviCRM cron run'),
       '#weight' => 10,
       '#markup' => $cron_text,
+      // Disable the cache on this field, but it does not seem to work
+      '#cache' => [
+        'max-age' => 0,
+      ],
     ];
     $node->content['hosting_civicrm_ansible']['ansible_civicrm_cron_user'] = [
       '#type' => 'item',
