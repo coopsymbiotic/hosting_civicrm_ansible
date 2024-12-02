@@ -415,13 +415,15 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
   // Platforms
   $platforms = hosting_civicrm_ansible_get_all_platforms();
   foreach ($platforms as $platform) {
+    $resource = $platform['publish_path'];
+    $resource = preg_replace('#/web$#', '', $resource);
+    $resource = basename($resource);
+
     // Exception for the admin UI (hostmaster)
     if ($platform['publish_path'] == '/var/aegir/admin/web') {
       $inventory->platforms['hosts'][] = 'admin';
     }
     else {
-      $resource = substr($platform['publish_path'], strlen('/var/aegir/platforms/'));
-      $resource = preg_replace('#/web$#', '', $resource);
       $inventory->platforms['hosts'][] = $resource;
     }
     $inventory->{'_meta'}->hostvars->{$resource} = $platform;
@@ -613,9 +615,9 @@ function hosting_civicrm_ansible_execute($task) {
 
   if ($action == 'verify' && $entity == 'platform') {
     // Ex: "/var/aegir/platforms/civicrm-prod" becomes "civicrm-prod"
-    $additions = db_query('SELECT publish_path FROM {hosting_platform} WHERE vid = :vid', array(':vid' => $node->vid))->fetchObject();
-    $resource = substr($additions->publish_path, strlen('/var/aegir/platforms/'));
+    $resource = db_query('SELECT publish_path FROM {hosting_platform} WHERE vid = :vid', array(':vid' => $node->vid))->fetchField();
     $resource = preg_replace('#/web$#', '', $resource);
+    $resource = basename($resource);
   }
 
   hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: inventory resource: ' . $resource);
