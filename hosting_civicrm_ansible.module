@@ -629,7 +629,10 @@ function hosting_civicrm_ansible_execute($task) {
     return;
   }
 
-  $command = 'sudo /usr/local/bin/aegir-ansible ' . escapeshellarg($resource) . ' ' . escapeshellarg($playbook) . ' ' . $task->nid;
+  // Fetch any task arguments
+  $args = hosting_civicrm_ansible_get_arguments($task->nid);
+
+  $command = 'sudo /usr/local/bin/aegir-ansible ' . escapeshellarg($resource) . ' ' . escapeshellarg($playbook) . ' ' . $task->nid . ' ' . implode(' ', $args);
   hosting_task_log($task->vid, 'ok', bt('CiviCRM Ansible: running: !command', ['!command' => $command]));
   // We append this here to make the above easier to read
   $command .= ' 2>&1';
@@ -695,4 +698,38 @@ function hosting_civicrm_ansible_execute($task) {
   // Update the task_status
   $task->executed = time();
   node_save($task);
+}
+
+/**
+ * Given a task node ID, returns the task arguments in an
+ * ansible-friendly way (so that we can pass them on the CLI)
+ */
+function hosting_civicrm_ansible_get_arguments($task_nid) {
+  $args = [];
+  $args[] = 'task=' . $task_nid;
+
+  $result = db_query('SELECT * FROM {hosting_task_arguments} WHERE nid = :nid', [':nid' => $task_nid]);
+
+  foreach ($result as $record) {
+    if ($record->name == 'bid') {
+      $value = db_query('SELECT filename FROM {hosting_site_backups} WHERE bid = :bid', [':bid' => $record->value])->fetchField();
+      $args[] = 'backup_filename=' . escapeshellarg($value);
+    }
+    elseif ($record->name == 'target_platform') {
+      $value = db_query('SELECT publish_path FROM hosting_platform WHERE nid = :nid', [':nid' => $record->value])->fetchField();
+      // @todo we might want to just override the site_root?
+      $args[] = 'new_site_root=' . escapeshellarg($value);
+    }
+    elseif ($record->name == 'new_db_server') {
+      // @todo we might want to just override the db_host?
+      $value = db_query('SELECT title FROM node WHERE nid = :nid', [':nid' => $record->value])->fetchField();
+      $args[] = 'new_db_host=' . escapeshellarg($value);
+    }
+    else {
+      // Ex: new_uri
+      $args[] = $record->name . '=' . escapeshellarg($record->value);
+    }
+  }
+
+  return $args;
 }
