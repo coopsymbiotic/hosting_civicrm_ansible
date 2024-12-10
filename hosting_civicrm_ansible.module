@@ -374,12 +374,22 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       $profile_node = node_load($node->profile);
       $profile = $profile_node->short_name;
     }
+    $civicrm_uf_map = [
+      'Drupal10' => 'Drupal8',
+      'Drupal9' => 'Drupal8',
+      'Drupal7' => 'Drupal',
+      'CiviCRM' => 'Standalone',
+    ];
+    $civicrm_uf = $civicrm_uf_map[$node->software] ?? $node->software ?? '';
     $inventory->{'_meta'}->hostvars->{$node->title} = [
       'nid' => $node->nid,
       // The 'cms' is only for backwards compatibility
       'cms' => 'drupal',
       'software' => $node->software ?? '',
+      'civicrm_uf' => $civicrm_uf,
       'profile' => $profile,
+      // We use the CiviCRM values (and capitalisation)
+      'environment' => $node->environment === 1 ? 'Production' : 'Development',
       'site_shortname' => $shortname,
       'site_root' => $site_root,
       'site_path' => $site_root . 'sites/' . $node->title,
@@ -403,11 +413,11 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'last_login' => $last_login,
     ];
 
-    // No idea why this is necessary
+    // Re-use the provision_symbiotic_is_dev_site() from provision_symbiotic, if available
+    // @todo Rely on the 'environment' setting? or still auto-detect because people might forget?
     if (file_exists('/var/aegir/.drush/provision_symbiotic/provision_symbiotic.drush.inc')) {
       @require_once '/var/aegir/.drush/provision_symbiotic/provision_symbiotic.drush.inc';
     }
-
     if (function_exists('provision_symbiotic_is_dev_site')) {
       if (provision_symbiotic_is_dev_site($node->title)) {
         $inventory->{'_meta'}->hostvars->{$node->title}['disable_notifications'] = "1";
