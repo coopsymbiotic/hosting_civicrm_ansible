@@ -275,6 +275,9 @@ function hosting_civicrm_ansible_interval_options() {
  */
 function _hosting_ansible_cron_last_output($node) {
   $prefix = ($node->type == 'site' ? 'd7' : 'wp') . 'civicron_';
+  if (!empty($node->software) && $node->software == 'WordPress') {
+    $prefix = 'wpcivicron_';
+  }
   $shortname = hosting_civicrm_ansible_inventory_shortname($node->title);
   $service = $prefix . $shortname;
 
@@ -394,7 +397,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'civicrm_uf' => $civicrm_uf,
       'profile' => $profile,
       // We use the CiviCRM values (and capitalisation)
-      'environment' => $node->environment === 1 ? 'Production' : 'Development',
+      'site_environment' => $node->environment === 1 ? 'Production' : 'Development',
       'site_shortname' => $shortname,
       'site_root' => $site_root,
       'site_path' => $site_root . 'sites/' . $node->title,
