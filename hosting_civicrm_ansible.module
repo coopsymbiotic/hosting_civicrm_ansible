@@ -390,6 +390,14 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'CiviCRM' => 'Standalone',
     ];
     $civicrm_uf = $civicrm_uf_map[$node->software] ?? $node->software ?? '';
+
+    // Fetch site aliases (for now, we do not care about the redirection setting, we always redirect)
+    $aliases = [];
+    $result = db_query('SELECT * FROM hosting_site_alias WHERE nid = :nid', [':nid' => $node->nid]);
+    foreach ($result as $record) {
+      $aliases[] = $record->alias;
+    }
+
     $inventory->{'_meta'}->hostvars->{$node->title} = [
       'nid' => $node->nid,
       // The 'cms' is only for backwards compatibility
@@ -397,6 +405,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'software' => $node->software ?? '',
       'civicrm_uf' => $civicrm_uf,
       'profile' => $profile,
+      'aliases' => $aliases,
       // We use the CiviCRM values (and capitalisation)
       'site_environment' => $node->environment === 1 ? 'Production' : 'Development',
       'site_shortname' => $shortname,
