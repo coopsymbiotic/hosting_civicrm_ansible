@@ -382,6 +382,9 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       $profile = $profile_node->short_name;
     }
 
+    // DB server
+    $db_server = node_load($node->db_server);
+
     // Set the UF for CiviCRM
     $civicrm_uf_map = [
       'Drupal10' => 'Drupal8',
@@ -414,8 +417,8 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'site_status' => $node->site_status,
       'db_name' => $node->db_name ?? '',
       'db_passwd' => $node->db_passwd ?? '',
-      'db_host' => $node->servers['db']->title,
-      'db_port' => $node->servers['db']->services['db']->port,
+      'db_host' => $db_server->title,
+      'db_port' => $db_server->services['db']->port,
       // @todo db https setting would be nice
       'db_ssl' => '',
       'civicrm_ansible_cron_interval' => $node->civicrm_ansible_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900),
