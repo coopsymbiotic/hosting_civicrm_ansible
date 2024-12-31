@@ -505,6 +505,9 @@ function hosting_civicrm_ansible_inventory_shortname($uri) {
   // and: site = mysite.example.org
   // then the shortname = mysite
   $aegir_server_url = variable_get('site_name');
+  if (defined('BACKDROP_ROOT')) {
+    $aegir_server_url = check_plain(config_get_translated('system.core', 'site_name'));
+  }
   $parts = explode('.', $aegir_server_url);
   array_shift($parts);
   $aegir_server_url = implode('.', $parts);
