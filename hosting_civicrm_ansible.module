@@ -765,10 +765,10 @@ function hosting_civicrm_ansible_get_arguments($task_nid) {
       $value = db_query('SELECT title FROM node WHERE nid = :nid', [':nid' => $record->value])->fetchField();
       $args[] = 'new_db_host=' . escapeshellarg($value);
     }
-    else {
-      // Ex: new_uri
-      $args[] = $record->name . '=' . escapeshellarg($record->value);
-    }
+
+    // Ex: new_uri
+    // and also include the original reference (ex: target_platform is useful)
+    $args[] = $record->name . '=' . escapeshellarg($record->value);
   }
 
   return $args;
