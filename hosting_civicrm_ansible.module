@@ -321,6 +321,10 @@ function _hosting_ansible_cron_last_output($node) {
  * @see https://www.drupal.org/project/aegir_ansible/
  */
 function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
+  if (function_exists('backdrop_page_is_cacheable')) {
+    backdrop_page_is_cacheable(FALSE);
+  }
+
   $inventory->all = [
     'vars' => [],
   ];
