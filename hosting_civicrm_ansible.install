@@ -25,8 +25,18 @@ function hosting_civicrm_ansible_schema() {
       'civicrm_cron_user' => [
         'type' => 'varchar',
         'length' => 128,
-        'not null' => TRUE,
-        'default' => '',
+      ],
+      'civicrm_sitekey' => [
+        'type' => 'varchar',
+        'length' => 256,
+      ],
+      'civicrm_credkey' => [
+        'type' => 'varchar',
+        'length' => 256,
+      ],
+      'civicrm_signkey' => [
+        'type' => 'varchar',
+        'length' => 256,
       ],
       'sftpchroot_keys' => [
         'type' => 'text',
@@ -45,33 +55,41 @@ function hosting_civicrm_ansible_schema() {
 }
 
 /**
- * Migrate old fields that were on the hosting_site table.
+ * Add the civicrm_cron_user field
+ *
+ * Implements hook_update_N().
  */
-function hosting_civicrm_update_7106() {
-  $return = [];
-
-  $schema = drupal_get_schema('hosting_civicrm_ansible');
-  db_create_table('hosting_civicrm_ansible', $schema);
-
-  db_query('INSERT INTO hosting_civicrm_ansible (nid, civicrm_cron_interval, sftpchroot_keys, mysqlro_keys, mysqlrw_keys)
-     SELECT nid, civicrm_ansible_cron_interval, civicrm_ansible_sftpchroot_keys, civicrm_ansible_mysqlro_keys, civicrm_ansible_mysqlrw_keys
-       FROM hosting_site
-      WHERE civicrm_ansible_cron_interval > 0 OR civicrm_ansible_sftpchroot_keys IS NOT NULL OR civicrm_ansible_mysqlro_keys IS NOT NULL OR civicrm_ansible_mysqlrw_keys IS NOT NULL');
-
-  db_drop_field('hosting_site', 'civicrm_ansible_cron_interval');
-  db_drop_field('hosting_site', 'civicrm_ansible_sftpchroot_keys');
-  db_drop_field('hosting_site', 'civicrm_ansible_mysqlrw_keys');
-  db_drop_field('hosting_site', 'civicrm_ansible_mysqlro_keys');
+function hosting_civicrm_ansible_update_1001() {
+  if (!db_field_exists('hosting_civicrm_ansible', 'civicrm_cron_user')) {
+    db_add_field('hosting_civicrm_ansible', 'civicrm_cron_user', [
+      'type' => 'varchar',
+      'length' => 128,
+    ]);
+  }
 }
 
 /**
- * Add the civicrm_cron_user column.
+ * Add the civicrm_sitekey, civicrm_credkey, civicrm_credkey fields
+ *
+ * Implements hook_update_N().
  */
-function hosting_civicrm_update_7107() {
-  db_add_field('hosting_civicrm_ansible', 'civicrm_cron_user', [
-    'type' => 'varchar',
-    'length' => 128,
-    'not null' => TRUE,
-    'default' => '',
-  ]);
+function hosting_civicrm_ansible_update_1002() {
+  if (!db_field_exists('hosting_civicrm_ansible', 'civicrm_sitekey')) {
+    db_add_field('hosting_civicrm_ansible', 'civicrm_sitekey', [
+      'type' => 'varchar',
+      'length' => 256,
+    ]);
+  }
+  if (!db_field_exists('hosting_civicrm_ansible', 'civicrm_credkey')) {
+    db_add_field('hosting_civicrm_ansible', 'civicrm_credkey', [
+      'type' => 'varchar',
+      'length' => 256,
+    ]);
+  }
+  if (!db_field_exists('hosting_civicrm_ansible', 'civicrm_signkey')) {
+    db_add_field('hosting_civicrm_ansible', 'civicrm_signkey', [
+      'type' => 'varchar',
+      'length' => 256,
+    ]);
+  }
 }
