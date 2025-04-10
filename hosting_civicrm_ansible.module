@@ -360,16 +360,19 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
   ];
   $inventory->platforms = [
     'hosts' => [],
-    'vars' => [
-      'ansible_ssh_host' => 'localhost',
-    ],
   ];
   $inventory->servers = [
     'hosts' => [],
-    'vars' => [
-      'ansible_ssh_host' => 'localhost',
-    ],
   ];
+
+  // Ex: when fetching the inventory remotely, for updating icinga, we do
+  // not want to use ansible_ssh_host=localhost, it would cause weird problems
+  // with delegate_to
+  if (empty($_REQUEST['remote'])) {
+    // @todo Why on platforms?
+    $inventory->platforms['vars']['ansible_ssh_host'] = 'localhost';
+    $inventory->servers['vars']['ansible_ssh_host'] = 'localhost';
+  }
 
   $nids = hosting_civicrm_ansible_get_all_sites($_REQUEST['include_disabled'] ?? FALSE);
   $site_nodes = node_load_multiple($nids);
