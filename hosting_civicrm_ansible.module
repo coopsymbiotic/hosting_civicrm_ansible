@@ -714,7 +714,8 @@ function hosting_civicrm_ansible_execute($task) {
   $args = hosting_civicrm_ansible_get_arguments($task->nid);
 
   $command = 'sudo /usr/local/bin/aegir-ansible ' . escapeshellarg($resource) . ' ' . escapeshellarg($playbook) . ' ' . $task->nid . ' ' . implode(' ', $args);
-  hosting_task_log($task->vid, 'ok', bt('CiviCRM Ansible: running: !command', ['!command' => $command]));
+  $bt = function_exists('bt') ? 'bt' : 'dt';
+  hosting_task_log($task->vid, 'ok', $bt('CiviCRM Ansible: running: !command', ['!command' => $command]));
   // We append this here to make the above easier to read
   $command .= ' 2>&1';
 
