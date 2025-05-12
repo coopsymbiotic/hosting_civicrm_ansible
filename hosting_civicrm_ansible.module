@@ -374,7 +374,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
     $inventory->servers['vars']['ansible_ssh_host'] = 'localhost';
   }
 
-  $nids = hosting_civicrm_ansible_get_all_sites($_REQUEST['include_disabled'] ?? FALSE);
+  $nids = hosting_civicrm_ansible_get_all_sites();
   $site_nodes = node_load_multiple($nids);
 
   // Get the last-login from our usage stats, if available
@@ -615,21 +615,13 @@ function hosting_civicrm_ansible_format_diskusage(&$formatted, $val, $total, $le
 /**
  * Based on hosting_civicrm_get_sites() but also returns disabled sites
  */
-function hosting_civicrm_ansible_get_all_sites($include_disabled = FALSE) {
+function hosting_civicrm_ansible_get_all_sites() {
   $sites = [];
 
-  if ($include_disabled) {
-    $result = db_query('SELECT n.nid FROM {node} n LEFT JOIN {hosting_site} s ON n.nid=s.nid WHERE n.type = :type and s.status != :status', [
-      ':type' => 'site',
-      ':status' => HOSTING_SITE_DELETED,
-    ]);
-  }
-  else {
-    $result = db_query('SELECT n.nid FROM {node} n LEFT JOIN {hosting_site} s ON n.nid=s.nid WHERE n.type = :type and s.status = :status', [
-      ':type' => 'site',
-      ':status' => HOSTING_SITE_ENABLED,
-    ]);
-  }
+  $result = db_query('SELECT n.nid FROM {node} n LEFT JOIN {hosting_site} s ON n.nid=s.nid WHERE n.type = :type and s.status != :status', [
+    ':type' => 'site',
+    ':status' => HOSTING_SITE_DELETED,
+  ]);
 
   foreach ($result as $record) {
     $sites[] = $record->nid;
