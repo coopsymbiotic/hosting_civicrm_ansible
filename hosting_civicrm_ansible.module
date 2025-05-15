@@ -3,6 +3,8 @@
 // Do not run CiviCRM cron for this site.
 define('HOSTING_CIVICRM_ANSIBLE_CRON_SITE_DISABLED', -1);
 
+include_once 'hosting_civicrm_ansible.nodeapi.inc';
+
 /**
  * Implements hook_init().
  */
