@@ -170,14 +170,14 @@ function hosting_civicrm_ansible_node_update($node) {
     db_merge('hosting_civicrm_ansible')
       ->key(['nid' => $node->nid])
       ->fields([
-        'civicrm_cron_interval' => $node->civicrm_ansible_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900),
-        'civicrm_cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
-        'civicrm_sitekey' => $node->civicrm_ansible_sitekey,
-        'civicrm_credkey' => $node->civicrm_ansible_credkey,
-        'civicrm_signkey' => $node->civicrm_ansible_signkey,
-        'sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
-        'mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
-        'mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys,
+        'civicrm_cron_interval' => !empty($node->civicrm_ansible_cron_interval) ? $node->civicrm_ansible_cron_interval : variable_get('hosting_civicrm_ansible_cron_default_interval', 900),
+        'civicrm_cron_user' => !empty($node->civicrm_ansible_cron_user) ? $node->civicrm_ansible_cron_user : variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
+        'civicrm_sitekey' => $node->civicrm_ansible_sitekey ?? NULL,
+        'civicrm_credkey' => $node->civicrm_ansible_credkey ?? NULL,
+        'civicrm_signkey' => $node->civicrm_ansible_signkey ?? NULL,
+        'sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys ?? NULL,
+        'mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys ?? NULL,
+        'mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys ?? NULL,
       ])
       ->execute();
   }
