@@ -376,6 +376,21 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
     $inventory->servers['vars']['ansible_ssh_host'] = 'localhost';
   }
 
+  // Platforms
+  $platforms = hosting_civicrm_ansible_get_all_platforms();
+  foreach ($platforms as $platform) {
+    $shortname = $platform['shortname'];
+    // Exception for the admin UI (hostmaster)
+    if ($platform['publish_path'] == '/var/aegir/admin/web') {
+      $inventory->platforms['hosts'][] = 'admin';
+    }
+    else {
+      $inventory->platforms['hosts'][] = $shortname;
+    }
+    $inventory->{'_meta'}->hostvars->{$shortname} = $platform;
+  }
+
+  // Sites
   $nids = hosting_civicrm_ansible_get_all_sites();
   $site_nodes = node_load_multiple($nids);
 
@@ -454,6 +469,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'site_root' => $site_root,
       'site_path' => $site_root . 'sites/' . $node->title,
       'site_status' => $node->site_status,
+      'platform_name' => $platforms[$node->platform]['shortname'],
       'db_name' => $node->db_name ?? '',
       'db_passwd' => $node->db_passwd ?? '',
       'db_host' => $db_server->title,
@@ -490,23 +506,6 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
     // @todo Deprecate civicrm_sites and only use 'sites'
     $inventory->civicrm_sites['hosts'][] = $node->title;
     $inventory->sites['hosts'][] = $node->title;
-  }
-
-  // Platforms
-  $platforms = hosting_civicrm_ansible_get_all_platforms();
-  foreach ($platforms as $platform) {
-    $resource = $platform['publish_path'];
-    $resource = preg_replace('#/web$#', '', $resource);
-    $resource = basename($resource);
-
-    // Exception for the admin UI (hostmaster)
-    if ($platform['publish_path'] == '/var/aegir/admin/web') {
-      $inventory->platforms['hosts'][] = 'admin';
-    }
-    else {
-      $inventory->platforms['hosts'][] = $resource;
-    }
-    $inventory->{'_meta'}->hostvars->{$resource} = $platform;
   }
 
   // Servers
@@ -643,13 +642,21 @@ function hosting_civicrm_ansible_get_all_platforms() {
   ]);
 
   foreach ($result as $record) {
-    $platforms[] = [
+    $resource = $record->publish_path;
+    $resource = preg_replace('#/web$#', '', $resource);
+    $resource = basename($resource);
+
+    $platforms[$record->nid] = [
+      'shortname' => $resource,
       'nid' => $record->nid,
       'web_server_nid' => $record->web_server,
       'publish_path' => $record->publish_path,
       'verified' => $record->verified,
       'status' => $record->status,
       'software' => $record->software ?? '',
+      'site_post_install_cmd' => $record->site_post_install_cmd ?? '',
+      'site_post_import_cmd' => $record->site_post_import_cmd ?? '',
+      'site_post_verify_cmd' => $record->site_post_verify_cmd ?? '',
     ];
   }
 
