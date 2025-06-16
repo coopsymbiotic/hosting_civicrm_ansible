@@ -42,10 +42,10 @@ function hosting_civicrm_ansible_node_load($nodes, $types) {
     }
 
     if ($node->type == 'site') {
-      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin');
+      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: '',
     }
     else {
-      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: variable_get('hosting_civicrm_default_wp_cron_user', 'admin');
+      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: '',
     }
     $node->civicrm_ansible_sitekey = $result->civicrm_sitekey ?: '';
     $node->civicrm_ansible_credkey = $result->civicrm_credkey ?: '';
@@ -173,7 +173,7 @@ function hosting_civicrm_ansible_node_update($node) {
       ->key(['nid' => $node->nid])
       ->fields([
         'civicrm_cron_interval' => !empty($node->civicrm_ansible_cron_interval) ? $node->civicrm_ansible_cron_interval : variable_get('hosting_civicrm_ansible_cron_default_interval', 900),
-        'civicrm_cron_user' => !empty($node->civicrm_ansible_cron_user) ? $node->civicrm_ansible_cron_user : variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
+        'civicrm_cron_user' => !empty($node->civicrm_ansible_cron_user) ? $node->civicrm_ansible_cron_user : '',
         'civicrm_sitekey' => $node->civicrm_ansible_sitekey ?? NULL,
         'civicrm_credkey' => $node->civicrm_ansible_credkey ?? NULL,
         'civicrm_signkey' => $node->civicrm_ansible_signkey ?? NULL,
@@ -270,8 +270,8 @@ function hosting_civicrm_ansible_form_alter(&$form, $form_state, $form_id) {
     $form['civicrm_ansible_cron_user'] = [
       '#type' => 'textfield',
       '#title' => t('Ansible - CiviCRM cron user'),
-      '#description' => t('Run the CiviCRM cron using this user. Defaults to "admin" on WordPress and Drupal. The cron is run using cv, which requires a username (it cannot be an ID). Can be changed by setting the hosting_civicrm_default_drupal_cron_user or hosting_civicrm_default_wp_cron_user variables.'),
-      '#default_value' => $form['#node']->civicrm_ansible_cron_user,
+      '#description' => t('Optional: Run the CiviCRM cron using this user. The cron is executed using "cv cron" (requires cv 0.3.65). If no username is specified, jobs are run with admin permissions and any activity created are associated with the default organizational contact.'),
+      '#default_value' => '',
       '#weight' => 16,
     ];
   }
@@ -477,13 +477,13 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       // @todo db https setting would be nice
       'db_ssl' => '',
       'civicrm_ansible_cron_interval' => $node->civicrm_ansible_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900),
-      'civicrm_ansible_cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
+      'civicrm_ansible_cron_user' => $node->civicrm_ansible_cron_user ?: '',
       'civicrm_site_key' => $node->civicrm_ansible_sitekey ?: '',
       'civicrm_cred_key' => $node->civicrm_ansible_credkey ?: '',
       'civicrm_sign_key' => $node->civicrm_ansible_signkey ?: '',
       'cms_cron_interval' => $node->cron_interval ?: 0,
       // Compatibility with hosting_wordpress
-      'cron_user' => $node->civicrm_ansible_cron_user ?: variable_get('hosting_civicrm_default_drupal_cron_user', 'admin'),
+      'cron_user' => $node->civicrm_ansible_cron_user ?: '',
       'civicrm_ansible_sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
       'civicrm_ansible_mysqlro_keys' => $node->civicrm_ansible_mysqlro_keys,
       'civicrm_ansible_mysqlrw_keys' => $node->civicrm_ansible_mysqlrw_keys,
