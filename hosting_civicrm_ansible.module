@@ -42,10 +42,10 @@ function hosting_civicrm_ansible_node_load($nodes, $types) {
     }
 
     if ($node->type == 'site') {
-      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: '',
+      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: '';
     }
     else {
-      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: '',
+      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: '';
     }
     $node->civicrm_ansible_sitekey = $result->civicrm_sitekey ?: '';
     $node->civicrm_ansible_credkey = $result->civicrm_credkey ?: '';
