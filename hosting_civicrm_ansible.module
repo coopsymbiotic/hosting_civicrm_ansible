@@ -695,7 +695,9 @@ function hosting_civicrm_ansible_execute($task) {
   $playbook = $entity . '/' . $action . '.yml';
   hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: preparing to run: ' . $playbook);
 
-  if ($action == 'verify' && $entity == 'platform') {
+  // For platforms, we always use a shortname based on the path
+  // not the human-readable version
+  if ($entity == 'platform') {
     // Ex: "/var/aegir/platforms/civicrm-prod" becomes "civicrm-prod"
     $resource = db_query('SELECT publish_path FROM {hosting_platform} WHERE vid = :vid', array(':vid' => $node->vid))->fetchField();
     $resource = preg_replace('#/web$#', '', $resource);
