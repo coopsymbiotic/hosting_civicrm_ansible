@@ -742,8 +742,10 @@ function hosting_civicrm_ansible_execute($task) {
     // Close the process
     $exitCode = proc_close($process);
 
-    // @todo This warning should be 'error' but we are having too many problems with Aegir rolling-back for no reason
-    hosting_task_log($task->vid, $exitCode == 0 ? 'ok' : 'warning', 'CiviCRM Ansible output...');
+    hosting_task_log($task->vid, 'ok', 'CiviCRM Ansible output...');
+
+    // @todo Warnings should be 'error' but we are having too many problems with Aegir rolling-back for no reason
+    // The new aegir does not rollback, so maybe we can change this?
     $task->task_status = $exitCode == 0 ? HOSTING_TASK_SUCCESS : HOSTING_TASK_WARNING;
     $lines = explode("\n", $output);
 
@@ -768,6 +770,13 @@ function hosting_civicrm_ansible_execute($task) {
       else {
         hosting_task_log($task->vid, 'info', $line);
       }
+    }
+
+    // Normally one of the above lines should have printed a warning
+    // but just in case, log a warning at the end (not at the beginning, or it breaks
+    // the "jump to first warnin").
+    if ($exitCode) {
+      hosting_task_log($task->vid, 'warning', 'CiviCRM Ansible exited with an error');
     }
   }
 
