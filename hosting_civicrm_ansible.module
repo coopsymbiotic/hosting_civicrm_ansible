@@ -610,7 +610,8 @@ function hosting_civicrm_ansible_format_diskusage(&$formatted, $val, $total, $le
 function hosting_civicrm_ansible_get_all_sites() {
   $sites = [];
 
-  $result = db_query('SELECT n.nid FROM {node} n LEFT JOIN {hosting_site} s ON n.nid=s.nid WHERE n.type = :type and s.status != :status', [
+  $op = empty($_REQUEST['site_status']) ? '!=' : '=';
+  $result = db_query("SELECT n.nid FROM {node} n LEFT JOIN {hosting_site} s ON n.nid=s.nid WHERE n.type = :type and s.status $op :status", [
     ':type' => 'site',
     ':status' => $_REQUEST['site_status'] ?? HOSTING_SITE_DELETED,
   ]);
