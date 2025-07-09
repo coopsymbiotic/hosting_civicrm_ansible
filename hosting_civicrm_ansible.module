@@ -742,7 +742,7 @@ function hosting_civicrm_ansible_execute($task) {
     // Close the process
     $exitCode = proc_close($process);
 
-    hosting_task_log($task->vid, 'ok', 'CiviCRM Ansible output...');
+    hosting_task_log($task->vid, 'info', 'CiviCRM Ansible output...');
 
     // @todo Warnings should be 'error' but we are having too many problems with Aegir rolling-back for no reason
     // The new aegir does not rollback, so maybe we can change this?
