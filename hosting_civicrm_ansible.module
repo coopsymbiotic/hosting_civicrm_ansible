@@ -453,6 +453,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'software' => $node->software ?? '',
       'civicrm_uf' => $civicrm_uf,
       'profile' => $profile,
+      'language' => $node->site_language,
       'aliases' => $aliases,
       // We use the CiviCRM values (and capitalisation)
       'site_environment' => $node->environment === 1 ? 'Production' : 'Development',
