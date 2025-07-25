@@ -671,9 +671,9 @@ function hosting_civicrm_ansible_execute($task) {
   $resource = $playbook = '';
   $node = NULL;
 
-  // Ex: provision-verify
+  // Ex: provision-verify (verify) or provision-backup-delete (backup-delete)
   hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: task_command: ' . $task->task_command);
-  $task_parts = explode('-', $task->task_command);
+  $task_parts = explode('-', $task->task_command, 2);
   $action = $task_parts[1] ?? NULL;
 
   if ($task_parts[0] != 'provision') {
