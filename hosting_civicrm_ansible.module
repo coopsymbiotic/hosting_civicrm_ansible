@@ -402,7 +402,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
   $inventory->all['vars']['phpversion'] = $parts[0] . '.' . $parts[1];
 
   // Set a global for most global confs (we also set it for each site)
-  $inventory->all['vars']['aegir_managed'] = 'Managed by Aegir on ' . date('Y-m-d H:i:s'),
+  $inventory->all['vars']['aegir_managed'] = 'Managed by Aegir on ' . date('Y-m-d H:i:s');
 
   foreach ($site_nodes as $node) {
     // Remove the top-level domain name from the shortname
