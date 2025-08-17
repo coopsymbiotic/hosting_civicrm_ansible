@@ -456,6 +456,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'software' => $node->software ?? '',
       'civicrm_uf' => $civicrm_uf,
       'profile' => $profile,
+      'language' => $node->site_language,
       'aliases' => $aliases,
       // We use the CiviCRM values (and capitalisation)
       'site_environment' => $node->environment === 1 ? 'Production' : 'Development',
@@ -615,9 +616,10 @@ function hosting_civicrm_ansible_format_diskusage(&$formatted, $val, $total, $le
 function hosting_civicrm_ansible_get_all_sites() {
   $sites = [];
 
-  $result = db_query('SELECT n.nid FROM {node} n LEFT JOIN {hosting_site} s ON n.nid=s.nid WHERE n.type = :type and s.status != :status', [
+  $op = empty($_REQUEST['site_status']) ? '!=' : '=';
+  $result = db_query("SELECT n.nid FROM {node} n LEFT JOIN {hosting_site} s ON n.nid=s.nid WHERE n.type = :type and s.status $op :status", [
     ':type' => 'site',
-    ':status' => HOSTING_SITE_DELETED,
+    ':status' => $_REQUEST['site_status'] ?? HOSTING_SITE_DELETED,
   ]);
 
   foreach ($result as $record) {
@@ -674,9 +676,9 @@ function hosting_civicrm_ansible_execute($task) {
   $resource = $playbook = '';
   $node = NULL;
 
-  // Ex: provision-verify
+  // Ex: provision-verify (verify) or provision-backup-delete (backup-delete)
   hosting_task_log($task->vid, 'info', 'hosting_civicrm_ansible_execute: task_command: ' . $task->task_command);
-  $task_parts = explode('-', $task->task_command);
+  $task_parts = explode('-', $task->task_command, 2);
   $action = $task_parts[1] ?? NULL;
 
   if ($task_parts[0] != 'provision') {
@@ -747,7 +749,7 @@ function hosting_civicrm_ansible_execute($task) {
     // Close the process
     $exitCode = proc_close($process);
 
-    hosting_task_log($task->vid, 'ok', 'CiviCRM Ansible output...');
+    hosting_task_log($task->vid, 'info', 'CiviCRM Ansible output...');
 
     // @todo Warnings should be 'error' but we are having too many problems with Aegir rolling-back for no reason
     // The new aegir does not rollback, so maybe we can change this?
