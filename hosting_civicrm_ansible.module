@@ -767,7 +767,9 @@ function hosting_civicrm_ansible_execute($task) {
       if (!$line) {
         continue;
       }
-      if (preg_match('/^(fail|error|fatal)/i', $line) && $lines[$key+1] != '...ignoring') {
+      // We do not log as warning/errors if the task error was explicitly ignored (ignore_errors: true) except for dehydrated
+      // because we explicitly ignore those errors, but we should still show them to the user (the fail might be for another domain)
+      if (preg_match('/^(fail|error|fatal)/i', $line) && (preg_match('/dehydrated/', $line) || $lines[$key+1] != '...ignoring')) {
         // @todo This warning should be 'error' but we are having too many problems with Aegir rolling-back for no reason
         hosting_task_log($task->vid, 'warning', $line);
         $task->task_status = HOSTING_TASK_WARNING;
