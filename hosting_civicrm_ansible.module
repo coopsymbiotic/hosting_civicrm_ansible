@@ -415,12 +415,12 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
 
     // Detect if Drupal is using a web subdirectory
     $site_root = $node->publish_path;
-    if (is_dir($site_root . '/web/')) {
-      $site_root = $site_root . '/web/';
+    if (is_dir($site_root . '/web')) {
+      $site_root = $site_root . '/web';
     }
-    // Make sure we have a trailing slash
-    if (substr($site_root, -1, 1) !== '/') {
-      $site_root .= '/';
+    // Remove the trailing slash (Ansible has trouble with things like "site_root|dirname")
+    if (substr($site_root, -1, 1) == '/') {
+      $site_root = substr($site_root, 0, -1);
     }
 
     // Drupal install profile
@@ -462,7 +462,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'site_environment' => $node->environment === 1 ? 'Production' : 'Development',
       'site_shortname' => $shortname,
       'site_root' => $site_root,
-      'site_path' => $site_root . 'sites/' . $node->title,
+      'site_path' => $site_root . '/sites/' . $node->title,
       'site_status' => $node->site_status,
       'platform_name' => $platforms[$node->platform]['shortname'],
       'db_name' => $node->db_name ?? '',
