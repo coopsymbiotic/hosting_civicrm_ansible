@@ -296,8 +296,13 @@ function hosting_civicrm_ansible_interval_options() {
  */
 function _hosting_ansible_cron_last_output($node) {
   $prefix = ($node->type == 'site' ? 'd7' : 'wp') . 'civicron_';
-  if (!empty($node->software) && $node->software == 'WordPress') {
-    $prefix = 'wpcivicron_';
+  if (!empty($node->software)) {
+    if ($node->software == 'WordPress') {
+      $prefix = 'wpcivicron_';
+    }
+    elseif ($node->software == 'CiviCRM') {
+      $prefix = 'civicron_';
+    }
   }
   $shortname = hosting_civicrm_ansible_inventory_shortname($node->title);
   $service = $prefix . $shortname;
