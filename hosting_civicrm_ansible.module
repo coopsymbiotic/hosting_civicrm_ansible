@@ -296,8 +296,13 @@ function hosting_civicrm_ansible_interval_options() {
  */
 function _hosting_ansible_cron_last_output($node) {
   $prefix = ($node->type == 'site' ? 'd7' : 'wp') . 'civicron_';
-  if (!empty($node->software) && $node->software == 'WordPress') {
-    $prefix = 'wpcivicron_';
+  if (!empty($node->software)) {
+    if ($node->software == 'WordPress') {
+      $prefix = 'wpcivicron_';
+    }
+    elseif ($node->software == 'CiviCRM') {
+      $prefix = 'civicron_';
+    }
   }
   $shortname = hosting_civicrm_ansible_inventory_shortname($node->title);
   $service = $prefix . $shortname;
@@ -415,12 +420,12 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
 
     // Detect if Drupal is using a web subdirectory
     $site_root = $node->publish_path;
-    if (is_dir($site_root . '/web/')) {
-      $site_root = $site_root . '/web/';
+    if (is_dir($site_root . '/web')) {
+      $site_root = $site_root . '/web';
     }
-    // Make sure we have a trailing slash
-    if (substr($site_root, -1, 1) !== '/') {
-      $site_root .= '/';
+    // Remove the trailing slash (Ansible has trouble with things like "site_root|dirname")
+    if (substr($site_root, -1, 1) == '/') {
+      $site_root = substr($site_root, 0, -1);
     }
 
     // Drupal install profile
@@ -462,7 +467,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'site_environment' => $node->environment === 1 ? 'Production' : 'Development',
       'site_shortname' => $shortname,
       'site_root' => $site_root,
-      'site_path' => $site_root . 'sites/' . $node->title,
+      'site_path' => $site_root . '/sites/' . $node->title,
       'site_status' => $node->site_status,
       'platform_name' => $platforms[$node->platform]['shortname'],
       'db_name' => $node->db_name ?? '',
