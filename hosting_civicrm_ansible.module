@@ -508,6 +508,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
   // Servers
   $servers = hosting_get_servers('db');
   $servers += hosting_get_servers('http');
+  $servers += hosting_get_servers('remote_import');
 
   foreach ($servers as $nid => $name) {
     $node = node_load($nid);
