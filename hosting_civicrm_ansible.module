@@ -449,9 +449,12 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
 
     // Fetch site aliases (for now, we do not care about the redirection setting, we always redirect)
     $aliases = [];
+    $aliases_redirection = FALSE;
     $result = db_query('SELECT * FROM hosting_site_alias WHERE nid = :nid', [':nid' => $node->nid]);
     foreach ($result as $record) {
       $aliases[] = $record->alias;
+      // This uses only the last value, but normally they all redirect, or they do not
+      $aliases_redirection = $record->redirection;
     }
 
     $inventory->{'_meta'}->hostvars->{$node->title} = [
@@ -463,6 +466,7 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'profile' => $profile,
       'language' => $node->site_language,
       'aliases' => $aliases,
+      'aliases_redirection' => $aliases_redirection,
       // We use the CiviCRM values (and capitalisation)
       'site_environment' => $node->environment === 1 ? 'Production' : 'Development',
       'site_shortname' => $shortname,
