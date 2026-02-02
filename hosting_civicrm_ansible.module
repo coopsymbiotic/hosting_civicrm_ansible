@@ -28,17 +28,11 @@ function hosting_civicrm_ansible_node_load($nodes, $types) {
       return;
     }
 
-    if ($result->civicrm_cron_interval > 0) {
-      // If no specific cron interval was set for this site, use the default.
-      $node->civicrm_ansible_cron_interval = $result->civicrm_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900);
-    }
+    // If no specific cron interval was set for this site, use the default.
+    // Disabled cron has a -1 value and the Ansible playbooks know how to handle this
+    $node->civicrm_ansible_cron_interval = $result->civicrm_cron_interval ?: variable_get('hosting_civicrm_ansible_cron_default_interval', 900);
 
-    if ($node->type == 'site') {
-      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: '';
-    }
-    else {
-      $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: '';
-    }
+    $node->civicrm_ansible_cron_user = $result->civicrm_cron_user ?: '';
     $node->civicrm_ansible_sitekey = $result->civicrm_sitekey ?: '';
     $node->civicrm_ansible_credkey = $result->civicrm_credkey ?: '';
     $node->civicrm_ansible_signkey = $result->civicrm_signkey ?: '';
