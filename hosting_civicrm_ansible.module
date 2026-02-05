@@ -443,7 +443,8 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
 
     // Fetch site aliases (for now, we do not care about the redirection setting, we always redirect)
     $aliases = [];
-    $aliases_redirection = FALSE;
+    // This is what Aegir sets as the value for "no redirect"
+    $aliases_redirection = "0";
     $result = db_query('SELECT * FROM hosting_site_alias WHERE nid = :nid', [':nid' => $node->nid]);
     foreach ($result as $record) {
       $aliases[] = $record->alias;
