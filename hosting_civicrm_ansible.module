@@ -481,6 +481,9 @@ function hosting_civicrm_ansible_ansible_inventory_alter(&$inventory) {
       'civicrm_cred_key' => $node->civicrm_ansible_credkey ?: '',
       'civicrm_sign_key' => $node->civicrm_ansible_signkey ?: '',
       'cms_cron_interval' => $node->cron_interval ?: 0,
+      // hosting_http_basic_auth
+      'http_basic_auth_username' => $node->http_basic_auth_username ?: '',
+      'http_basic_auth_password' => $node->http_basic_auth_password ?: '',
       // Compatibility with hosting_wordpress
       'cron_user' => $node->civicrm_ansible_cron_user ?: '',
       'civicrm_ansible_sftpchroot_keys' => $node->civicrm_ansible_sftpchroot_keys,
